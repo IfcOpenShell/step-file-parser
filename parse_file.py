@@ -2,34 +2,41 @@ from lark import Lark, Transformer
 import time
 import sys
 import os
+import traceback
 import json
 # import pdb; pdb.set_trace()
 ifc_parser = Lark(r"""
 
 file: "ISO-10303-21;" header data "END-ISO-10303-21;"
 
-header: "HEADER" ";" filerecord* "ENDSEC" ";"
+header: "HEADER" ";" header_comment? filerecord* "ENDSEC" ";"
+
+header_comment: "/" ("*") (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* 
 
 data: "DATA" ";" record* "ENDSEC" ";"
+
 filerecord: filedecl attributes ";"
+
 record: id "=" ifcclass attributes ";"
+
 id: "#" (DIGIT)*
+
 ifcclass:"IFC" IDENTIFIER
+
 filedecl : "FILE_" IDENTIFIER
 
 tup: "(" attribute ("," attribute)* ")" | "()"
 
 attributes: "(" attribute ("," attribute)* ")" | "()" 
 
-attribute:  STAR| NONE | INT | REAL | enumeration |id|ifcclass attributes|string |tup 
+attribute:  "*"| NONE | INT | REAL | enumeration |id|ifcclass attributes|string |tup 
 
 enumeration: "." (IDENTIFIER|"_")* "."
 
 string: "'" (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* "'"
 
-
 WO:(LCASE_LETTER)*
-STAR: "*"
+
 NONE: "$"
 expansion : "$" IDENTIFIER
 
@@ -47,6 +54,7 @@ SPECIAL : "!"
         | ")" 
         | "?" 
         | "/" 
+        | "\\"
         | ":" 
         | ";" 
         | "<" 
@@ -62,6 +70,7 @@ SPECIAL : "!"
         | "`" 
         | "~"
         | "_"
+        | "\""
 
 real: REAL
 REAL: SIGN?  DIGIT  (DIGIT)* "." (DIGIT)* ("E"  SIGN  DIGIT (DIGIT)* )?
@@ -85,8 +94,7 @@ WS: /[ \t\f\r\n]/+
 
 """, parser='lalr', start='file')
 
-
-      
+ 
 class IfcType:
         def __init__(self, ifctype, value):
                 self.ifctype = ifctype
@@ -117,7 +125,7 @@ class T(Transformer):
         INT = int
         REAL = float
         NONE = str
-        STAR = str
+        # STAR = str
 
 def process_attributes(file_id, attributes_tree, tup=False):
         attributes = []
@@ -183,61 +191,51 @@ def create_entity(record, is_attr=False):
                 return {'id':file_id, 'ifc_type':ifc_type, 'attributes':attributes }
 
 
+if __name__ == "__main__":
+        fn = ifc_fn = sys.argv[1]
+        f = open(fn, "r")
+        text = f.read() 
+        jsonresultout = os.path.join(os.getcwd(), "result_syntax.json")
+        start_time = time.time()
 
-fn = "files/acad2010_walls.ifc"
-fn = ifc_fn = sys.argv[1]
-f = open(fn, "r")
-text = f.read() 
-jsonresultout = os.path.join(os.getcwd(), "result_syntax.json")
-start_time = time.time()
+        try:
+                tree = ifc_parser.parse(text)
+                print("--- %s seconds ---" % (time.time() - start_time))
+                        
+                header = tree.children[0]
 
-try:
-        tree = ifc_parser.parse(text)
+                for filerecord in header.children:
+                        if filerecord.children[0].children[0] == 'SCHEMA':
+                                schema_tree = filerecord.children[1]
+                                schema_string = schema_tree.children[0].children[0].children[0].children[0]
+                                char_list = [c[0] for c in schema_string.children ]
+                                schema = "".join(char_list)     
 
+                data = tree.children[1]
 
+                test_record = data.children[0]
 
-        print("--- %s seconds ---" % (time.time() - start_time))
+                rels = []
+                drels = {}
 
-        header = tree.children[0]
+                ents = {}
 
-        for filerecord in header.children:
-                if filerecord.children[0].children[0] == 'SCHEMA':
-                        schema_tree = filerecord.children[1]
-                        schema_string = schema_tree.children[0].children[0].children[0].children[0]
-                        char_list = [c[0] for c in schema_string.children ]
-                        schema = "".join(char_list)     
+                for r in data.children:
+                        entity = create_entity(r)
+                        ents[entity['id']] = entity
 
-        data = tree.children[1]
+                for e in ents.values():
+                        if e['id'] in drels.keys():
+                                e['attributes'][1].extend(drels[e['id']])
 
-        test_record = data.children[0]
-
-
-        rels = []
-
-        drels = {}
-
-
-        ents = {}
-
-        for r in data.children:
-                entity = create_entity(r)
-                ents[entity['id']] = entity
-
-
-        for e in ents.values():
-                if e['id'] in drels.keys():
-                        e['attributes'][1].extend(drels[e['id']])
-
-        with open(jsonresultout, 'w', encoding='utf-8') as f:
-                json.dump({'syntax':'v'}, f, ensure_ascii=False, indent=4)
+                with open(jsonresultout, 'w', encoding='utf-8') as f:
+                        json.dump({'syntax':'v'}, f, ensure_ascii=False, indent=4)
 
 
-
-except:
+        except Exception as lark_exception:
+                # import pdb;pdb.set_trace()
+                traceback.print_exc(file=sys.stdout)
+                # print("Unexpected error:", sys.exc_info())
         
-        
-        with open(jsonresultout, 'w', encoding='utf-8') as f:
-                json.dump({'syntax':'i'}, f, ensure_ascii=False, indent=4)
-
 
 

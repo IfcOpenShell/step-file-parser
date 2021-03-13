@@ -1,1 +1,1 @@
-test\pypy3.exe parse_file.py
+test\pypy3.exe parse_file.py %1
