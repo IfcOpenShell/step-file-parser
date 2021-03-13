@@ -33,15 +33,21 @@ tup: "(" attribute ("," attribute)* ")" | "()"
 
 attributes: "(" attribute ("," attribute)* ")" | "()" 
 
-attribute:  STAR| NONE | INT | REAL | enumeration |id|ifcclass attributes|string |tup 
+attribute:  STAR| NONE | INT | REAL | enumeration |id|ifcclass attributes|string |double_quoted_string|tup 
 
 enumeration: "." (IDENTIFIER|"_")* "."
 
-string: "'" (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* "'"
+//see in which case it can be encountered to set appropriate rule name
+double_quoted_string: "\"" (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* "\"" 
+
+string: "'" (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* "'" 
+
 STAR:"*"
+
 WO:(LCASE_LETTER)*
 
 NONE: "$"
+
 expansion : "$" IDENTIFIER
 
 SPECIAL : "!"  
@@ -77,21 +83,46 @@ SPECIAL : "!"
         | "\""
 
 real: REAL
+
 REAL: SIGN?  DIGIT  (DIGIT)* "." (DIGIT)* ("E"  SIGN  DIGIT (DIGIT)* )?
+
 INT: SIGN? DIGIT  (DIGIT)* 
+
+HEX_FOUR: HEX_TWO HEX_TWO
+
+HEX_TWO: HEX_ONE HEX_ONE 
+
+HEX_ONE: HEX HEX
+
+HEX:      "0" 
+        | "1" 
+        | "2" 
+        | "3" 
+        | "4" 
+        | "5"
+        | "6" 
+        | "7" 
+        | "8" 
+        | "9" 
+        | "A" 
+        | "B" 
+        | "C" 
+        | "D" 
+        | "E" 
+        | "F" 
+
+
 DIGIT: "0".."9"
 SIGN: "+"|"-"
-
 LCASE_LETTER: "a".."z"
 UCASE_LETTER: "A".."Z"
-
 IDENTIFIER: ("A" .. "Z" | "a" .. "z") ("A" .. "Z" | "a" .. "z" | "0" .. "9")*
 ESCAPE    : "\\" ( "$" | "\"" | CHAR )
 CHAR      : /[^$"\n]/
 WORD      : CHAR+
 HASHTAG : "#"
-
 WS: /[ \t\f\r\n]/+
+
 %ignore WS
 %ignore "\n"
 
@@ -206,7 +237,7 @@ if __name__ == "__main__":
                 print("--- %s seconds ---" % (time.time() - start_time))
                         
                 header = tree.children[0]
-
+                # import pdb;pdb.set_trace()
                 for filerecord in header.children:
                         if filerecord.children[0].children[0] == 'SCHEMA':
                                 schema_tree = filerecord.children[1]
@@ -230,6 +261,8 @@ if __name__ == "__main__":
                 for e in ents.values():
                         if e['id'] in drels.keys():
                                 e['attributes'][1].extend(drels[e['id']])
+
+                import pdb; pdb.set_trace()
 
                 with open(jsonresultout, 'w', encoding='utf-8') as f:
                         json.dump({'syntax':'v'}, f, ensure_ascii=False, indent=4)
