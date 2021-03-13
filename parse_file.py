@@ -11,7 +11,11 @@ file: "ISO-10303-21;" header data "END-ISO-10303-21;"
 
 header: "HEADER" ";" header_comment? filerecord* "ENDSEC" ";"
 
-header_comment: "/" ("*") (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* 
+header_comment: open_comment comment_content 
+
+open_comment: "/" STAR*
+
+comment_content: STAR? (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* 
 
 data: "DATA" ";" record* "ENDSEC" ";"
 
@@ -29,12 +33,12 @@ tup: "(" attribute ("," attribute)* ")" | "()"
 
 attributes: "(" attribute ("," attribute)* ")" | "()" 
 
-attribute:  "*"| NONE | INT | REAL | enumeration |id|ifcclass attributes|string |tup 
+attribute:  STAR| NONE | INT | REAL | enumeration |id|ifcclass attributes|string |tup 
 
 enumeration: "." (IDENTIFIER|"_")* "."
 
 string: "'" (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* "'"
-
+STAR:"*"
 WO:(LCASE_LETTER)*
 
 NONE: "$"
@@ -89,7 +93,6 @@ HASHTAG : "#"
 
 WS: /[ \t\f\r\n]/+
 %ignore WS
-
 %ignore "\n"
 
 """, parser='lalr', start='file')
