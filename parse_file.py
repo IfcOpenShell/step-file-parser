@@ -22,21 +22,19 @@ simple_entity_instance: id "=" simple_record ";"
 complex_entity_instance: id "=" subsuper_record ";"
 subsuper_record : "(" simple_record_list ")" 
 
-simple_record: keyword "("parameter_list")"
 simple_record_list:simple_record simple_record* 
+simple_record: keyword "("parameter_list?")"
 
 header_entity :keyword "(" parameter_list ")" ";" 
 header_entity_list: header_entity header_entity* 
 
 id: "#" DIGIT (DIGIT)*
-ifcclass: keyword
-filedecl: keyword
 keyword: ("A" .. "Z") ("A" .. "Z"|"_"|DIGIT)*
 
 parameter: untyped_parameter|typed_parameter|omitted_parameter
 parameter_list: parameter ("," parameter)*
-list: "(" parameter ("," parameter)* ")" | "()"
-typed_parameter: keyword "(" parameter ")" 
+list: "(" parameter ("," parameter)* ")" 
+typed_parameter: keyword "(" parameter ")"|"()" 
 untyped_parameter: string| NONE |INT |REAL |enumeration |id |binary |list
 omitted_parameter: "*" 
 
@@ -142,6 +140,7 @@ if __name__ == "__main__":
         try:
                 tree = ifc_parser.parse(text)
                 print("--- %s seconds ---" % (time.time() - start_time))
+                print(tree.children[0])
 
                 
         except Exception as lark_exception:
