@@ -11,50 +11,46 @@ file: "ISO-10303-21;" header data_section "END-ISO-10303-21;"
 
 header: "HEADER" ";" header_comment? filerecord* "ENDSEC" ";"
 
-header_comment: open_comment comment_content 
+header_comment: header_comment_start header_line header_line* "*" (("*")* "/")+
+header_comment_start: "/" "*" "*"* 
+header_line: (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* "*"
 
-open_comment: "/" STAR*
-
-comment_content: STAR? (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* 
 
 data_section: "DATA" ";" record* "ENDSEC" ";"
 
-filerecord: filedecl attributes ";"
+filerecord: keyword "("parameter_list")" ";"
 
-record: id "=" ifcclass attributes ";"
+record: id "=" keyword "("parameter_list")" ";"
 
 id: "#" (DIGIT)*
 
+ifcclass: keyword
+filedecl: keyword
 
+keyword: ("A" .. "Z") ("A" .. "Z"|"_"|DIGIT)*
 
-ifcclass:("IFC")? IDENTIFIER
+parameter: untyped_parameter|typed_parameter|omitted_parameter
+parameter_list: parameter ("," parameter)*
+list: "(" parameter ("," parameter)* ")" | "()"
+typed_parameter: keyword "(" parameter ")" 
+untyped_parameter: string| NONE | INT | REAL | enumeration | id |binary|list
+omitted_parameter: "*" 
 
-
-
-filedecl : "FILE_" IDENTIFIER
-
-tup: "(" attribute ("," attribute)* ")" | "()"
-
-attributes: "(" attribute ("," attribute)* ")" | "()" 
-
-attribute:  STAR | NONE | INT | REAL | enumeration | id |ifcclass attributes | string | binary | tup 
-
-enumeration: "." (IDENTIFIER|"_")* "."
+enumeration: "." keyword "."
 
 binary: "\"" ("0"|"1"|"2"|"3") (HEX)* "\"" 
 
-string: "'" (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* "'" 
+string: "'" (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER|"\\*\\")* "'" 
 
-STAR:"*"
 
 WO:(LCASE_LETTER)*
 
 NONE: "$"
 
-expansion : "$" IDENTIFIER
+
 
 SPECIAL : "!"  
-        | "*" 
+        | "*"
         | "$" 
         | "%" 
         | "&" 
@@ -84,7 +80,9 @@ SPECIAL : "!"
         | "~"
         | "_"
         | "\""
+        | "\"\""
         | "''"
+
 
 real: REAL
 
@@ -120,7 +118,7 @@ DIGIT: "0".."9"
 SIGN: "+"|"-"
 LCASE_LETTER: "a".."z"
 UCASE_LETTER: "A".."Z"
-IDENTIFIER: ("A" .. "Z" | "a" .. "z") ("A" .. "Z" | "a" .. "z" | "0" .. "9")*
+
 ESCAPE    : "\\" ( "$" | "\"" | CHAR )
 CHAR      : /[^$"\n]/
 WORD      : CHAR+
@@ -239,6 +237,8 @@ if __name__ == "__main__":
         try:
                 tree = ifc_parser.parse(text)
                 print("--- %s seconds ---" % (time.time() - start_time))
+
+                exit()
                         
                 header = tree.children[0]
                 # import pdb;pdb.set_trace()
