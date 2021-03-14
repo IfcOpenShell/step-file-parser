@@ -7,7 +7,7 @@ import json
 
 ifc_parser = Lark(r"""
 
-file: "ISO-10303-21;" header data "END-ISO-10303-21;"
+file: "ISO-10303-21;" header data_section "END-ISO-10303-21;"
 
 header: "HEADER" ";" header_comment? filerecord* "ENDSEC" ";"
 
@@ -17,7 +17,7 @@ open_comment: "/" STAR*
 
 comment_content: STAR? (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* 
 
-data: "DATA" ";" record* "ENDSEC" ";"
+data_section: "DATA" ";" record* "ENDSEC" ";"
 
 filerecord: filedecl attributes ";"
 
@@ -25,7 +25,11 @@ record: id "=" ifcclass attributes ";"
 
 id: "#" (DIGIT)*
 
-ifcclass:"IFC" IDENTIFIER
+
+
+ifcclass:("IFC")? IDENTIFIER
+
+
 
 filedecl : "FILE_" IDENTIFIER
 
@@ -33,12 +37,11 @@ tup: "(" attribute ("," attribute)* ")" | "()"
 
 attributes: "(" attribute ("," attribute)* ")" | "()" 
 
-attribute:  STAR | NONE | INT | REAL | enumeration | id |ifcclass attributes | string | hex_string | tup 
+attribute:  STAR | NONE | INT | REAL | enumeration | id |ifcclass attributes | string | binary | tup 
 
 enumeration: "." (IDENTIFIER|"_")* "."
 
-//see in which other cases it can be encountered
-hex_string: "\"" (HEX)* "\"" 
+binary: "\"" ("0"|"1"|"2"|"3") (HEX)* "\"" 
 
 string: "'" (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* "'" 
 
