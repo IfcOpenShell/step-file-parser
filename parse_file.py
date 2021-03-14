@@ -4,7 +4,7 @@ import sys
 import os
 import traceback
 import json
-# import pdb; pdb.set_trace()
+
 ifc_parser = Lark(r"""
 
 file: "ISO-10303-21;" header data "END-ISO-10303-21;"
@@ -33,12 +33,12 @@ tup: "(" attribute ("," attribute)* ")" | "()"
 
 attributes: "(" attribute ("," attribute)* ")" | "()" 
 
-attribute:  STAR| NONE | INT | REAL | enumeration |id|ifcclass attributes|string |double_quoted_string|tup 
+attribute:  STAR | NONE | INT | REAL | enumeration | id |ifcclass attributes | string | hex_string | tup 
 
 enumeration: "." (IDENTIFIER|"_")* "."
 
-//see in which case it can be encountered to set appropriate rule name
-double_quoted_string: "\"" (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* "\"" 
+//see in which other cases it can be encountered
+hex_string: "\"" (HEX)* "\"" 
 
 string: "'" (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* "'" 
 
@@ -81,6 +81,7 @@ SPECIAL : "!"
         | "~"
         | "_"
         | "\""
+        | "''"
 
 real: REAL
 
@@ -262,14 +263,13 @@ if __name__ == "__main__":
                         if e['id'] in drels.keys():
                                 e['attributes'][1].extend(drels[e['id']])
 
-                import pdb; pdb.set_trace()
+                # import pdb; pdb.set_trace()
 
                 with open(jsonresultout, 'w', encoding='utf-8') as f:
                         json.dump({'syntax':'v'}, f, ensure_ascii=False, indent=4)
 
-
         except Exception as lark_exception:
-                # import pdb;pdb.set_trace()
+                import pdb;pdb.set_trace()
                 traceback.print_exc(file=sys.stdout)
                 # print("Unexpected error:", sys.exc_info())
         
