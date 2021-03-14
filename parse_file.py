@@ -9,31 +9,35 @@ ifc_parser = Lark(r"""
 
 file: "ISO-10303-21;" header data_section "END-ISO-10303-21;"
 
-header: "HEADER" ";" header_comment? filerecord* "ENDSEC" ";"
+header: "HEADER" ";" header_comment? header_entity_list "ENDSEC" ";"
 
 header_comment: header_comment_start header_line header_line* "*" (("*")* "/")+
 header_comment_start: "/" "*" "*"* 
 header_line: (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* "*"
 
+data_section: "DATA" ";" (entity_instance)* "ENDSEC" ";"
 
-data_section: "DATA" ";" record* "ENDSEC" ";"
+entity_instance: simple_entity_instance|complex_entity_instance
+simple_entity_instance: id "=" simple_record ";" 
+complex_entity_instance: id "=" subsuper_record ";"
+subsuper_record : "(" simple_record_list ")" 
 
-filerecord: keyword "("parameter_list")" ";"
+simple_record: keyword "("parameter_list")"
+simple_record_list:simple_record simple_record* 
 
-record: id "=" keyword "("parameter_list")" ";"
+header_entity :keyword "(" parameter_list ")" ";" 
+header_entity_list: header_entity header_entity* 
 
-id: "#" (DIGIT)*
-
+id: "#" DIGIT (DIGIT)*
 ifcclass: keyword
 filedecl: keyword
-
 keyword: ("A" .. "Z") ("A" .. "Z"|"_"|DIGIT)*
 
 parameter: untyped_parameter|typed_parameter|omitted_parameter
 parameter_list: parameter ("," parameter)*
 list: "(" parameter ("," parameter)* ")" | "()"
 typed_parameter: keyword "(" parameter ")" 
-untyped_parameter: string| NONE | INT | REAL | enumeration | id |binary|list
+untyped_parameter: string| NONE |INT |REAL |enumeration |id |binary |list
 omitted_parameter: "*" 
 
 enumeration: "." keyword "."
@@ -42,12 +46,9 @@ binary: "\"" ("0"|"1"|"2"|"3") (HEX)* "\""
 
 string: "'" (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER|"\\*\\")* "'" 
 
-
 WO:(LCASE_LETTER)*
 
 NONE: "$"
-
-
 
 SPECIAL : "!"  
         | "*"
@@ -82,7 +83,6 @@ SPECIAL : "!"
         | "\""
         | "\"\""
         | "''"
-
 
 real: REAL
 
@@ -122,7 +122,7 @@ UCASE_LETTER: "A".."Z"
 ESCAPE    : "\\" ( "$" | "\"" | CHAR )
 CHAR      : /[^$"\n]/
 WORD      : CHAR+
-HASHTAG : "#"
+
 WS: /[ \t\f\r\n]/+
 
 %ignore WS
@@ -131,101 +131,6 @@ WS: /[ \t\f\r\n]/+
 """, parser='lalr', start='file')
 
  
-class IfcType:
-        def __init__(self, ifctype, value):
-                self.ifctype = ifctype
-                self.value = value
-        def __str__(self):
-                return self.ifctype + "(" + str(self.value) + ")"
-        __repr__ = __str__
-
-class T(Transformer):
-        def id(self, s):
-                num_list = [str(n) for n in s ]
-                word = int("".join(num_list))
-                return word
-        def INT(self, s):
-                num_list = [str(n) for n in s ]
-                word = int("".join(num_list))
-                return word
-        def string(self, s):
-                word = "".join(s)
-                return word
-        def enumeration(self, s):
-                return s[0]
-
-        def IDENTIFIER(self, s):
-                word = "".join(s)
-                return word
-
-        INT = int
-        REAL = float
-        NONE = str
-        # STAR = str
-
-def process_attributes(file_id, attributes_tree, tup=False):
-        attributes = []
-        relations = []
-        
-        for a in attributes_tree.children:
-                try:     
-                        if a.children[0].data == 'tup':
-                                attributes.append(process_attributes(file_id, a.children[0], tup=True))
-                        elif a.children[0].data == 'string' :
-                                to_append = T(visit_tokens=True).transform(a)
-                                attributes.append(to_append.children[0])
-                        elif a.children[0].data == 'id' :
-                                to_append = T(visit_tokens=True).transform(a)
-                                attributes.append(to_append.children[0])
-                                relations.append(to_append.children[0])
-                                
-                                if tup:
-                                        # print(file_id, to_append.children[0])
-                                        rels.append((file_id, to_append.children[0],))
-
-                                        if file_id in drels.keys():
-                                                drels[file_id].append(to_append.children[0])
-                                        else:
-                                                drels[file_id] = [to_append.children[0]]
-
-                        elif a.children[0].data == 'enumeration' :
-                                # attributes.append(a.children[0].children[0])
-                                to_append = T(visit_tokens=True).transform(a).children[0]
-                                attributes.append(to_append)
-                        elif a.children[0].data == 'ifcclass' :
-                                attributes.append(create_entity(a, is_attr=1))
-                        else:  
-                                attributes.append(a)
-                except:
-                        # When the tree contains a Token. Todo: more robust way to 
-                        # handle that case. 
-                        attributes.append(T(visit_tokens=True).transform(a).children[0])
-
-        if tup:
-                return tuple(attributes)
-        else:
-                return attributes,relations
-
-
-
-def create_entity(record, is_attr=False):
-        if is_attr:              
-                ifc_type = "IFC"+record.children[0].children[0]
-   
-                a = record.children[1].children[0]
-                val = T(visit_tokens=True).transform(a).children[0]
-
-                return IfcType(ifc_type, val)
-        else:
-                id_tree = record.children[0]
-                file_id = T(visit_tokens=True).transform(id_tree)
-                
-                ifc_type = "IFC" + record.children[1].children[0]
-                attributes_tree = record.children[2]
-                attributes = process_attributes(file_id, attributes_tree)
-
-                return {'id':file_id, 'ifc_type':ifc_type, 'attributes':attributes }
-
 
 if __name__ == "__main__":
         fn = ifc_fn = sys.argv[1]
@@ -238,38 +143,7 @@ if __name__ == "__main__":
                 tree = ifc_parser.parse(text)
                 print("--- %s seconds ---" % (time.time() - start_time))
 
-                exit()
-                        
-                header = tree.children[0]
-                # import pdb;pdb.set_trace()
-                for filerecord in header.children:
-                        if filerecord.children[0].children[0] == 'SCHEMA':
-                                schema_tree = filerecord.children[1]
-                                schema_string = schema_tree.children[0].children[0].children[0].children[0]
-                                char_list = [c[0] for c in schema_string.children ]
-                                schema = "".join(char_list)     
-
-                data = tree.children[1]
-
-                test_record = data.children[0]
-
-                rels = []
-                drels = {}
-
-                ents = {}
-
-                for r in data.children:
-                        entity = create_entity(r)
-                        ents[entity['id']] = entity
-
-                for e in ents.values():
-                        if e['id'] in drels.keys():
-                                e['attributes'][1].extend(drels[e['id']])
-
-        
-                # with open(jsonresultout, 'w', encoding='utf-8') as f:
-                #         json.dump({'syntax':'v'}, f, ensure_ascii=False, indent=4)
-
+                
         except Exception as lark_exception:
                 import pdb;pdb.set_trace()
                 traceback.print_exc(file=sys.stdout)
