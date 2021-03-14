@@ -13,7 +13,7 @@ header: "HEADER" ";" header_comment? header_entity_list "ENDSEC" ";"
 
 header_comment: header_comment_start header_line header_line* "*" (("*")* "/")+
 header_comment_start: "/" "*" "*"* 
-header_line: (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER)* "*"
+header_line: (SPECIAL|DIGIT|LOWER|UPPER)* "*"
 
 data_section: "DATA" ";" (entity_instance)* "ENDSEC" ";"
 
@@ -42,9 +42,8 @@ enumeration: "." keyword "."
 
 binary: "\"" ("0"|"1"|"2"|"3") (HEX)* "\"" 
 
-string: "'" (SPECIAL|DIGIT|LCASE_LETTER|UCASE_LETTER|"\\*\\")* "'" 
+string: "'" (SPECIAL|DIGIT|LOWER|UPPER|"\\*\\")* "'" 
 
-WO:(LCASE_LETTER)*
 
 NONE: "$"
 
@@ -84,7 +83,7 @@ SPECIAL : "!"
 
 real: REAL
 
-REAL: SIGN?  DIGIT  (DIGIT)* "." (DIGIT)* ("E"  SIGN  DIGIT (DIGIT)* )?
+REAL: SIGN?  DIGIT  (DIGIT)* "." (DIGIT)* ("E"  SIGN?  DIGIT (DIGIT)* )?
 
 INT: SIGN? DIGIT  (DIGIT)* 
 
@@ -114,8 +113,8 @@ HEX:      "0"
 
 DIGIT: "0".."9"
 SIGN: "+"|"-"
-LCASE_LETTER: "a".."z"
-UCASE_LETTER: "A".."Z"
+LOWER: "a".."z"
+UPPER: "A".."Z"
 
 ESCAPE    : "\\" ( "$" | "\"" | CHAR )
 CHAR      : /[^$"\n]/
@@ -129,7 +128,6 @@ WS: /[ \t\f\r\n]/+
 """, parser='lalr', start='file')
 
  
-
 if __name__ == "__main__":
         fn = ifc_fn = sys.argv[1]
         f = open(fn, "r")
@@ -140,7 +138,7 @@ if __name__ == "__main__":
         try:
                 tree = ifc_parser.parse(text)
                 print("--- %s seconds ---" % (time.time() - start_time))
-                print(tree.children[0])
+               
 
                 
         except Exception as lark_exception:
