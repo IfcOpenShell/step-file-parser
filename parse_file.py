@@ -263,10 +263,9 @@ if __name__ == "__main__":
                         if e['id'] in drels.keys():
                                 e['attributes'][1].extend(drels[e['id']])
 
-                # import pdb; pdb.set_trace()
-
-                with open(jsonresultout, 'w', encoding='utf-8') as f:
-                        json.dump({'syntax':'v'}, f, ensure_ascii=False, indent=4)
+        
+                # with open(jsonresultout, 'w', encoding='utf-8') as f:
+                #         json.dump({'syntax':'v'}, f, ensure_ascii=False, indent=4)
 
         except Exception as lark_exception:
                 import pdb;pdb.set_trace()
