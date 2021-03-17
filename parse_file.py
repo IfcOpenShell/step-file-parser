@@ -108,7 +108,57 @@ WS: /[ \t\f\r\n]/+
 
 """, parser='lalr', start='file')
 
- 
+
+class T(Transformer):
+        # def id(self, s):
+        #         num_list = [str(n) for n in s ]
+        #         word = int("".join(num_list))
+        #         return word
+        # def INT(self, s):
+        #         num_list = [str(n) for n in s ]
+        #         word = int("".join(num_list))
+        #         return word
+        def string(self, s):
+                word = "".join(s)
+                return word
+
+        def keyword(self, s):
+                word = "".join(s)
+                return word
+
+        # def enumeration(self, s):
+        #         return s[0]
+
+        parameter_list = list
+        INT = int
+        REAL = float
+      
+
+def get_header(tree):
+        return tree[0]
+
+def process_attributes(attributes_tree):
+        at = attributes_tree
+        import pdb; pdb.set_trace()
+
+
+def create_step_entity(entity_tree):
+        #print(entity_tree)
+        t = T(visit_tokens=True).transform(entity_tree)
+        print(t)
+        id_tree = t.children[0].children[0]
+        entity_type_tree = t.children[0].children[1].children[0]
+        attributes_tree =  t.children[0].children[1].children[1]
+        process_attributes(attributes_tree)
+
+        
+def process_tree(file_tree):
+        print("Start processing the tree")
+        entity_tree = file_tree.children[1].children[177]
+        create_step_entity(entity_tree)
+        # import pdb;pdb.set_trace()
+
+
 if __name__ == "__main__":
         fn = ifc_fn = sys.argv[1]
         f = open(fn, "r")
@@ -119,10 +169,11 @@ if __name__ == "__main__":
         try:
                 tree = ifc_parser.parse(text)
                 print("--- %s seconds ---" % (time.time() - start_time))
-               
+                process_tree(tree)
+
 
         except Exception as lark_exception:
-                import pdb;pdb.set_trace()
+                #import pdb;pdb.set_trace()
                 traceback.print_exc(file=sys.stdout)
                 # print("Unexpected error:", sys.exc_info())
                 
