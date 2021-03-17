@@ -25,10 +25,11 @@ id: "#" DIGIT (DIGIT)*
 keyword: ("A" .. "Z") ("A" .. "Z"|"_"|DIGIT)*
 parameter: untyped_parameter|typed_parameter|omitted_parameter
 parameter_list: parameter ("," parameter)*
-list: "(" parameter ("," parameter)* ")" 
+list: "(" parameter ("," parameter)* ")" |"("")"
 typed_parameter: keyword "(" parameter ")"|"()" 
 untyped_parameter: string| NONE |INT |REAL |enumeration |id |binary |list
-omitted_parameter: "*" 
+omitted_parameter:STAR
+STAR: "*" 
 enumeration: "." keyword "."
 binary: "\"" ("0"|"1"|"2"|"3") (HEX)* "\"" 
 string: "'" (SPECIAL|DIGIT|LOWER|UPPER|"\\*\\")* "'" 
@@ -108,16 +109,27 @@ WS: /[ \t\f\r\n]/+
 
 """, parser='lalr', start='file')
 
+class Ref:
+        def __init__(self, id):
+                self.id = id
+        def __str__(self):
+                return '#' + str(self.id)
+        __repr__ = __str__
+
+class IfcType:
+        def __init__(self, ifctype, value):
+                self.ifctype = ifctype
+                self.value = value
+        def __str__(self):
+                return self.ifctype + "(" + str(self.value) + ")"
+        __repr__ = __str__
 
 class T(Transformer):
-        # def id(self, s):
-        #         num_list = [str(n) for n in s ]
-        #         word = int("".join(num_list))
-        #         return word
-        # def INT(self, s):
-        #         num_list = [str(n) for n in s ]
-        #         word = int("".join(num_list))
-        #         return word
+        def id(self, s):
+                num_list = [str(n) for n in s ]
+                word = int("".join(num_list))
+                return Ref(int("".join(num_list)))
+
         def string(self, s):
                 word = "".join(s)
                 return word
@@ -126,37 +138,66 @@ class T(Transformer):
                 word = "".join(s)
                 return word
 
-        # def enumeration(self, s):
-        #         return s[0]
+        def untyped_parameter(self, s):
+                return s[0]
+        
+  
 
-        parameter_list = list
+        def parameter(self, s):
+                return s[0]
+        
+
+        def typed_parameter(self, s):
+                if len(s):
+                        return IfcType(s[0], s[1])
+                else:
+                        return ()
+ 
+
+        def omitted_parameter(self, s):
+                return s[0]
+        def enumeration(self, s):
+                return s[0]
+
+        parameter_list = tuple
+        list = tuple
+        subsuper_record = list
         INT = int
         REAL = float
-      
+        NONE = str
+        STAR = str
+        
 
 def get_header(tree):
         return tree[0]
 
 def process_attributes(attributes_tree):
+        attributes = []
         at = attributes_tree
-        import pdb; pdb.set_trace()
-
-
+        return [a for a in at]
+       
 def create_step_entity(entity_tree):
-        #print(entity_tree)
+        entity = {}
         t = T(visit_tokens=True).transform(entity_tree)
-        print(t)
         id_tree = t.children[0].children[0]
-        entity_type_tree = t.children[0].children[1].children[0]
-        attributes_tree =  t.children[0].children[1].children[1]
-        process_attributes(attributes_tree)
 
-        
+        entity_id = t.children[0].children[0].id      
+        entity_type = t.children[0].children[1].children[0]
+
+        attributes_tree =  t.children[0].children[1].children[1]
+        attributes = process_attributes(attributes_tree)
+
+        return {'id':entity_id, 'type': entity_type, 'attributes':attributes}
+
+
 def process_tree(file_tree):
-        print("Start processing the tree")
-        entity_tree = file_tree.children[1].children[177]
-        create_step_entity(entity_tree)
-        # import pdb;pdb.set_trace()
+        ents = {}
+
+        for entity_tree in file_tree.children[1].children:
+                ent = create_step_entity(entity_tree)
+                ents[ent['id']] = ent
+
+        return ents
 
 
 if __name__ == "__main__":
@@ -169,9 +210,8 @@ if __name__ == "__main__":
         try:
                 tree = ifc_parser.parse(text)
                 print("--- %s seconds ---" % (time.time() - start_time))
-                process_tree(tree)
-
-
+                entities = process_tree(tree)
+                
         except Exception as lark_exception:
                 #import pdb;pdb.set_trace()
                 traceback.print_exc(file=sys.stdout)
