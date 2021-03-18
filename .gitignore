@@ -3,4 +3,6 @@
 *.ifc
 *.txt
 *.json
+<<<<<<< HEAD
 *.stp
+__pycache__/
