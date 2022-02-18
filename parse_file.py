@@ -192,8 +192,15 @@ def create_step_entity(entity_tree):
 
 def process_tree(file_tree):
         ents = {}
+        
+        n = len(file_tree.children[1].children)
+        if n:
+            percentages = [i * 100. / n for i in range(n+1)]
+            num_dots = [int(b) - int(a) for a, b in zip(percentages, percentages[1:])]
 
-        for entity_tree in file_tree.children[1].children:
+        for idx, entity_tree in enumerate(file_tree.children[1].children):
+                sys.stdout.write(num_dots[idx] * ".")
+                sys.stdout.flush()
                 ent = create_step_entity(entity_tree)
                 ents[ent['id']] = ent
 
@@ -206,16 +213,14 @@ if __name__ == "__main__":
         text = f.read() 
         jsonresultout = os.path.join(os.getcwd(), "result_syntax.json")
         start_time = time.time()
-
+        
         try:
                 tree = ifc_parser.parse(text)
-                print("--- %s seconds ---" % (time.time() - start_time))
+                # print("--- %s seconds ---" % (time.time() - start_time))
                 entities = process_tree(tree)
-                
+                print("valid", file=sys.stderr)
         except Exception as lark_exception:
-                #import pdb;pdb.set_trace()
-                traceback.print_exc(file=sys.stdout)
-                # print("Unexpected error:", sys.exc_info())
+                print(lark_exception, file=sys.stderr)
                 
 
 
