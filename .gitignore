@@ -1,6 +1,5 @@
 /files/*
 /test/*
-*.ifc
 *.txt
 *.json
 *.stp
