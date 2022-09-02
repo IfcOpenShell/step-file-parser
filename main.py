@@ -54,8 +54,8 @@ header: "HEADER" ";" header_comment? header_entity_list "ENDSEC" ";"
 header_comment: header_comment_start header_line header_line* "*" (("*")* "/")+
 header_comment_start: "/" "*" "*"* 
 header_line: (SPECIAL|DIGIT|LOWER|UPPER)* "*"
-data_section: "DATA" ";" (entity_instance)* "ENDSEC" ";"
-entity_instance: simple_entity_instance|complex_entity_instance
+data_section: "DATA" ";" (COMMENT|entity_instance)* "ENDSEC" ";"
+entity_instance: simple_entity_instance|complex_entity_instance 
 simple_entity_instance: id "=" simple_record ";" 
 complex_entity_instance: id "=" subsuper_record ";"
 subsuper_record : "(" simple_record_list ")" 
@@ -71,11 +71,13 @@ list: "(" parameter ("," parameter)* ")" |"("")"
 typed_parameter: keyword "(" parameter ")"|"()" 
 untyped_parameter: string| NONE |INT |REAL |enumeration |id |binary |list
 omitted_parameter:STAR
-STAR: "*" 
 enumeration: "." keyword "."
 binary: "\"" ("0"|"1"|"2"|"3") (HEX)* "\"" 
 string: "'" (SPECIAL|DIGIT|LOWER|UPPER|"\\*\\")* "'" 
 
+COMMENT: SLASH STAR " " (SPECIAL|DIGIT|LOWER|UPPER|" ")* " " STAR SLASH
+STAR: "*"
+SLASH: "/"
 NONE: "$"
 SPECIAL : "!"  
         | "*"
@@ -146,6 +148,7 @@ CHAR      : /[^$"\n]/
 WORD      : CHAR+
 WS: /[ \t\f\r\n]/+
 
+%ignore COMMENT
 %ignore WS
 %ignore "\n"
 
@@ -261,7 +264,7 @@ def process_tree(filecontent, file_tree, with_progress):
         if ents[id_]:
             raise DuplicateNameError(filecontent, ent['id'], ent['lines'])
         ents[id_].append(ent)
-
+    
     return ents
 
 
