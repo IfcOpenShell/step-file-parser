@@ -54,7 +54,7 @@ header: "HEADER" ";" header_comment? header_entity_list "ENDSEC" ";"
 header_comment: header_comment_start header_line header_line* "*" (("*")* "/")+
 header_comment_start: "/" "*" "*"* 
 header_line: (SPECIAL|DIGIT|LOWER|UPPER)* "*"
-data_section: "DATA" ";" (COMMENT|entity_instance)* "ENDSEC" ";"
+data_section: "DATA" ";" (entity_instance)* "ENDSEC" ";"
 entity_instance: simple_entity_instance|complex_entity_instance 
 simple_entity_instance: id "=" simple_record ";" 
 complex_entity_instance: id "=" subsuper_record ";"
