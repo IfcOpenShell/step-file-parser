@@ -75,7 +75,7 @@ enumeration: "." keyword "."
 binary: "\"" ("0"|"1"|"2"|"3") (HEX)* "\"" 
 string: "'" (SPECIAL|DIGIT|LOWER|UPPER|"\\*\\")* "'" 
 
-COMMENT: SLASH STAR " " (SPECIAL|DIGIT|LOWER|UPPER|" ")* " " STAR SLASH
+COMMENT: SLASH STAR (SPECIAL|DIGIT|LOWER|UPPER|" ")* STAR SLASH
 STAR: "*"
 SLASH: "/"
 NONE: "$"
