@@ -173,9 +173,7 @@ class IfcType:
 
 class T(Transformer):
     def id(self, s):
-        num_list = [str(n) for n in s]
-        word = int("".join(num_list))
-        return Ref(int("".join(num_list)))
+        return int(s[0][1:])
 
     def string(self, s):
         word = "".join(s)
@@ -230,7 +228,7 @@ def create_step_entity(entity_tree):
 
     id_tree = t.children[0].children[0]
 
-    entity_id = t.children[0].children[0].id
+    entity_id = t.children[0].children[0]
     entity_type = t.children[0].children[1].children[0]
 
     attributes_tree = t.children[0].children[1].children[1]
