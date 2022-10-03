@@ -263,6 +263,7 @@ def parse(*, filename=None, filecontent=None, with_progress=False, with_tree=Tru
         assert not filecontent
         filecontent = open(filename, encoding='ascii').read()
         
+    instance_identifiers = []
     transformer = {}
     if not with_tree:
         # If we're not going to return the tree, we also don't need to
@@ -277,9 +278,17 @@ def parse(*, filename=None, filecontent=None, with_progress=False, with_tree=Tru
         # Extract the rule names
         rule_names = filter(lambda s: not s.startswith('_'), set(r.origin.name for r in temp.rules))
         null_function = lambda *args: None
-        NT = type('NullTransformer', (Transformer,), {r: null_function for r in rule_names})
+        # Create dictionary of methods for type() creation
+        methods = {r: null_function for r in rule_names}
+        
+        # Even in this case we do want to report duplicate identifiers
+        # so these need to be captured
+        methods['id'] = lambda *args: args
+        methods['simple_entity_instance'] = lambda tree: instance_identifiers.append((int(tree[0][0][0][1:]), int(tree[0][0][0].line)))
+        
+        NT = type('NullTransformer', (Transformer,), methods)
         transformer = {'transformer': NT}
-
+        
     parser = Lark(grammar, parser="lalr", start="file", **transformer)
     
     try:
@@ -289,7 +298,15 @@ def parse(*, filename=None, filecontent=None, with_progress=False, with_tree=Tru
     
     if with_tree:
         return process_tree(filecontent, ast, with_progress)
-     
+    else:
+        # process_tree() would take care of duplicate identifiers,
+        # but we need to do it ourselves now using our rudimentary
+        # transformer
+        seen = set()
+        for iden, lineno in instance_identifiers:
+            if iden in seen:
+                raise DuplicateNameError(filecontent, iden, [lineno, lineno])
+            seen.add(iden)
 
 if __name__ == "__main__":
     args = [x for x in sys.argv[1:] if not x.startswith("-")]

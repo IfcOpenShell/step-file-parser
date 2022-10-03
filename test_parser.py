@@ -4,12 +4,18 @@ import pytest
 from main import parse, ValidationError
 from contextlib import nullcontext
 
-@pytest.mark.parametrize("file", glob.glob("fixtures/*.ifc"))
-def test_file(file):
-    if "fail_" in file:
-        cm = pytest.raises(ValidationError)
+def create_context(fn):
+    if "fail_" in fn:
+        return pytest.raises(ValidationError)
     else:
-        cm = nullcontext()
+        return nullcontext()
 
-    with cm: 
-        parse(filename=file)
+@pytest.mark.parametrize("file", glob.glob("fixtures/*.ifc"))
+def test_file_with_tree(file):
+    with create_context(file): 
+        parse(filename=file, with_tree=True)
+
+@pytest.mark.parametrize("file", glob.glob("fixtures/*.ifc"))
+def test_file_without_tree(file):
+    with create_context(file): 
+        parse(filename=file, with_tree=False)
