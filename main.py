@@ -280,7 +280,7 @@ def parse(*, filename=None, filecontent=None, with_progress=False, with_tree=Tru
         rule_names = filter(lambda s: not s.startswith('_'), set(r.origin.name for r in temp.rules))
         null_function = lambda *args: None
         NT = type('NullTransformer', (Transformer,), {r: null_function for r in rule_names})
-        # transformer = {'transformer': NT}
+        transformer = {'transformer': NT}
 
     parser = Lark(grammar, parser="lalr", start="file", **transformer)
     
