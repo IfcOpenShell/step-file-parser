@@ -45,10 +45,7 @@ class DuplicateNameError(ValidationError):
             yield ' '* 8 + '^' * max_line
         return "\n".join(build())
 
-
-grammar = Lark(
-    r"""
-
+grammar = r"""
 file: "ISO-10303-21;" header data_section "END-ISO-10303-21;"
 header: "HEADER" ";" header_comment? header_entity_list "ENDSEC" ";"
 header_comment: header_comment_start header_line header_line* "*" (("*")* "/")+
@@ -63,8 +60,8 @@ simple_record_list:simple_record simple_record*
 simple_record: keyword "("parameter_list?")"
 header_entity :keyword "(" parameter_list ")" ";" 
 header_entity_list: header_entity header_entity* 
-id: "#" DIGIT (DIGIT)*
-keyword: ("A" .. "Z") ("A" .. "Z"|"_"|DIGIT)*
+id: /#[0-9]+/
+keyword: /[A-Z][0-9A-Z_]*/
 parameter: untyped_parameter|typed_parameter|omitted_parameter
 parameter_list: parameter ("," parameter)*
 list: "(" parameter ("," parameter)* ")" |"("")"
@@ -151,12 +148,7 @@ WS: /[ \t\f\r\n]/+
 %ignore COMMENT
 %ignore WS
 %ignore "\n"
-
-""",
-    parser="lalr",
-    start="file",
-)
-
+"""
 
 class Ref:
     def __init__(self, id):
@@ -268,18 +260,38 @@ def process_tree(filecontent, file_tree, with_progress):
     return ents
 
 
-def parse(*, filename=None, filecontent=None, with_progress=False):
+def parse(*, filename=None, filecontent=None, with_progress=False, with_tree=True):
     if filename:
         assert not filecontent
         filecontent = open(filename, encoding='ascii').read()
         
+    transformer = {}
+    if not with_tree:
+        # If we're not going to return the tree, we also don't need to
+        # keep in memory while parsing. So we build a transformer that
+        # just returns None for every rule. lark creates a dictionary
+        # of callbacks from the transformer type object, so we can't
+        # simply use __getattr__ we need an actual type objects with
+        # callback functions for the rules given in the grammar.
+        
+        # Create a temporary parser just for analysing the grammar
+        temp = Lark(grammar, parser="lalr", start="file")
+        # Extract the rule names
+        rule_names = filter(lambda s: not s.startswith('_'), set(r.origin.name for r in temp.rules))
+        null_function = lambda *args: None
+        NT = type('NullTransformer', (Transformer,), {r: null_function for r in rule_names})
+        # transformer = {'transformer': NT}
+
+    parser = Lark(grammar, parser="lalr", start="file", **transformer)
+    
     try:
-        ast = grammar.parse(filecontent)
+        ast = parser.parse(filecontent)
     except UnexpectedToken as e:
         raise SyntaxError(filecontent, e)
-        
-    return process_tree(filecontent, ast, with_progress)
-
+    
+    if with_tree:
+        return process_tree(filecontent, ast, with_progress)
+     
 
 if __name__ == "__main__":
     args = [x for x in sys.argv[1:] if not x.startswith("-")]
@@ -290,7 +302,7 @@ if __name__ == "__main__":
     start_time = time.time()
 
     try:
-        parse(filename=fn, with_progress="--progress" in flags)
+        parse(filename=fn, with_progress="--progress" in flags, with_tree=False)
         print("Valid", file=sys.stderr)
         exit(0)
     except ValidationError as exc:
