@@ -70,9 +70,9 @@ untyped_parameter: string| NONE |INT |REAL |enumeration |id |binary |list
 omitted_parameter:STAR
 enumeration: "." keyword "."
 binary: "\"" ("0"|"1"|"2"|"3") (HEX)* "\"" 
-string: "'" (SPECIAL|DIGIT|LOWER|UPPER|"\\*\\")* "'" 
+string: "'" (REVERSE_SOLIDUS REVERSE_SOLIDUS|SPECIAL|DIGIT|LOWER|UPPER|CONTROL_DIRECTIVE|"\\*\\")* "'" 
 
-COMMENT: SLASH STAR (SPECIAL|DIGIT|LOWER|UPPER|" ")* STAR SLASH
+COMMENT: SLASH STAR (WS|REVERSE_SOLIDUS|SPECIAL|DIGIT|LOWER|UPPER|" ")* STAR SLASH
 STAR: "*"
 SLASH: "/"
 NONE: "$"
@@ -90,7 +90,6 @@ SPECIAL : "!"
         | ")" 
         | "?" 
         | "/" 
-        | "\\"
         | ":" 
         | ";" 
         | "<" 
@@ -109,12 +108,16 @@ SPECIAL : "!"
         | "\""
         | "\"\""
         | "''"
-
-
-
 REAL: SIGN?  DIGIT  (DIGIT)* "." (DIGIT)* ("E"  SIGN?  DIGIT (DIGIT)* )?
 INT: SIGN? DIGIT  (DIGIT)* 
-
+CONTROL_DIRECTIVE: PAGE | ALPHABET | EXTENDED2 | EXTENDED4 | ARBITRARY 
+PAGE : REVERSE_SOLIDUS "S" REVERSE_SOLIDUS LATIN_CODEPOINT
+LATIN_CODEPOINT : DIGIT | LOWER | UPPER | SPECIAL | REVERSE_SOLIDUS | APOSTROPHE
+ALPHABET : REVERSE_SOLIDUS "P" UPPER REVERSE_SOLIDUS 
+EXTENDED2: REVERSE_SOLIDUS "X2" REVERSE_SOLIDUS (HEX_TWO)* END_EXTENDED 
+EXTENDED4 :REVERSE_SOLIDUS "X4" REVERSE_SOLIDUS (HEX_FOUR)* END_EXTENDED 
+END_EXTENDED: REVERSE_SOLIDUS "X0" REVERSE_SOLIDUS 
+ARBITRARY: REVERSE_SOLIDUS "X" REVERSE_SOLIDUS HEX_ONE 
 HEX_FOUR: HEX_TWO HEX_TWO
 HEX_TWO: HEX_ONE HEX_ONE 
 HEX_ONE: HEX HEX
@@ -134,8 +137,8 @@ HEX:      "0"
         | "D" 
         | "E" 
         | "F" 
-
-
+APOSTROPHE: "'"
+REVERSE_SOLIDUS: "\\"
 DIGIT: "0".."9"
 SIGN: "+"|"-"
 LOWER: "a".."z"
@@ -145,9 +148,9 @@ CHAR      : /[^$"\n]/
 WORD      : CHAR+
 WS: /[ \t\f\r\n]/+
 
-%ignore COMMENT
 %ignore WS
 %ignore "\n"
+%ignore COMMENT
 """
 
 class Ref:
@@ -261,8 +264,8 @@ def process_tree(filecontent, file_tree, with_progress):
 def parse(*, filename=None, filecontent=None, with_progress=False, with_tree=True):
     if filename:
         assert not filecontent
-        filecontent = open(filename, encoding='ascii').read()
-        
+        filecontent = open(filename, encoding=None).read()
+
     instance_identifiers = []
     transformer = {}
     if not with_tree:
