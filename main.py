@@ -7,7 +7,7 @@ import json
 from collections import defaultdict
 
 from lark import Lark, Transformer, Tree, Token
-from lark.exceptions import UnexpectedToken
+from lark.exceptions import UnexpectedToken, UnexpectedCharacters
 
 
 class ValidationError(Exception):
@@ -21,11 +21,20 @@ class SyntaxError(ValidationError):
         
     def __str__(self, linewidth=80):
         ln = self.filecontent.split("\n")[self.exception.line-1]
-        if len(self.exception.accepts) == 1:
-            exp = next(iter(self.exception.accepts))
-        else:
-            exp = f"one of {' '.join(sorted(x for x in self.exception.accepts if '__ANON' not in x))}"
-        return f"On line {self.exception.line} column {self.exception.column}:\nUnexpected {self.exception.token.type.lower()} ('{self.exception.token.value}')\nExpecting {exp}\n{self.exception.line:05d} | {ln}\n        {' ' * (self.exception.column - 1)}^"
+        if self.exception.__class__.__name__ == "UnexpectedToken":
+            if len(self.exception.accepts) == 1:
+                exp = next(iter(self.exception.accepts))
+            else:
+                exp = f"one of {' '.join(sorted(x for x in self.exception.accepts if '__ANON' not in x))}"
+            msg = f"On line {self.exception.line} column {self.exception.column}:\nUnexpected {self.exception.token.type.lower()} ('{self.exception.token.value}')\nExpecting {exp}\n{self.exception.line:05d} | {ln}\n        {' ' * (self.exception.column - 1)}^"
+        elif self.exception.__class__.__name__ == "UnexpectedCharacters":
+            if len(self.exception.allowed) == 1:
+                exp = next(iter(self.exception.allowed))
+            else:
+                exp = f"one of {' '.join(sorted(x for x in self.exception.allowed if '__ANON' not in x))}"
+            msg = f"On line {self.exception.line} column {self.exception.column}:\nUnexpected character\nExpecting {exp}\n{self.exception.line:05d} | {ln}\n        {' ' * (self.exception.column - 1)}^"
+
+        return msg
 
 
 class DuplicateNameError(ValidationError):
@@ -298,7 +307,9 @@ def parse(*, filename=None, filecontent=None, with_progress=False, with_tree=Tru
         ast = parser.parse(filecontent)
     except UnexpectedToken as e:
         raise SyntaxError(filecontent, e)
-    
+    except UnexpectedCharacters as e:
+        raise SyntaxError(filecontent, e)
+
     if with_tree:
         return process_tree(filecontent, ast, with_progress)
     else:
