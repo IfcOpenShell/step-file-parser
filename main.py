@@ -18,23 +18,29 @@ class SyntaxError(ValidationError):
     def __init__(self, filecontent, exception):
         self.filecontent = filecontent
         self.exception = exception
-        
-    def __str__(self, linewidth=80):
-        ln = self.filecontent.split("\n")[self.exception.line-1]
-        if isinstance(self.exception, UnexpectedToken):
-            if len(self.exception.accepts) == 1:
-                exp = next(iter(self.exception.accepts))
-            else:
-                exp = f"one of {' '.join(sorted(x for x in self.exception.accepts if '__ANON' not in x))}"
-            msg = f"On line {self.exception.line} column {self.exception.column}:\nUnexpected {self.exception.token.type.lower()} ('{self.exception.token.value}')\nExpecting {exp}\n{self.exception.line:05d} | {ln}\n        {' ' * (self.exception.column - 1)}^"
-        elif isinstance(self.exception, UnexpectedCharacters):
-            if len(self.exception.allowed) == 1:
-                exp = next(iter(self.exception.allowed))
-            else:
-                exp = f"one of {' '.join(sorted(x for x in self.exception.allowed if '__ANON' not in x))}"
-            msg = f"On line {self.exception.line} column {self.exception.column}:\nUnexpected character\nExpecting {exp}\n{self.exception.line:05d} | {ln}\n        {' ' * (self.exception.column - 1)}^"
 
-        return msg
+    def asdict(self, with_message=True):
+        return {
+            'type': 'unexpected_token' if isinstance(self.exception, UnexpectedToken) else 'unexpected_character',
+            'lineno': self.exception.line,
+            'column': self.exception.column,
+            'found_type': self.exception.token.type.lower(),
+            'found_value': self.exception.token.value,
+            'expected': sorted(x for x in self.exception.accepts if '__ANON' not in x),
+            'line': self.filecontent.split("\n")[self.exception.line-1],
+            **({'message': str(self)} if with_message else {})
+        }
+
+    def __str__(self):
+        d = self.asdict(with_message=False)
+        if len(d['expected']) == 1:
+            exp = d['expected'][0]
+        else:
+            exp = f"one of {' '.join(d['expected'])}"
+
+        sth = 'character' if d['type'] == 'unexpected_character' else ''
+
+        return f"On line {d['lineno']} column {d['column']}:\nUnexpected {sth}{d['found_type']} ('{d['found_value']}')\nExpecting {exp}\n{d['lineno']:05d} | {d['line']}\n        {' ' * (self.exception.column - 1)}^"
 
 
 class DuplicateNameError(ValidationError):
@@ -42,16 +48,22 @@ class DuplicateNameError(ValidationError):
         self.name = name
         self.filecontent = filecontent
         self.linenumbers = linenumbers
-        
-    def __str__(self, linewidth=80):
-        splitted = self.filecontent.split("\n")
+
+    def asdict(self, with_message=True):
+        return {
+            'type': 'duplicate_name',
+            'name': self.name,
+            'lineno': self.linenumbers[0],
+            'line': self.filecontent.split("\n")[self.linenumbers[0]-1],
+            **({'message': str(self)} if with_message else {})
+        }
+
+    def __str__(self):
+        d = self.asdict(with_message=False)
         def build():
-            max_line = 0
-            yield f"On line {self.linenumbers[0]}:\nDuplicate instance name #{self.name}"
-            for i in range(self.linenumbers[0] - 1, self.linenumbers[1]):
-                yield f"{i+1:05d} | {splitted[i]}"
-                max_line = max(max_line, len(splitted[i]))
-            yield ' '* 8 + '^' * max_line
+            yield f"On line {d['lineno']}:\nDuplicate instance name #{d['name']}"
+            yield f"{d['lineno']:05d} | {d['line']}"
+            yield ' '* 8 + '^' * len(d['line'].rstrip())
         return "\n".join(build())
 
 grammar = r"""
@@ -324,14 +336,19 @@ if __name__ == "__main__":
     args = [x for x in sys.argv[1:] if not x.startswith("-")]
     flags = [x for x in sys.argv[1:] if x.startswith("-")]
     
-    fn = sys.argv[1]
-    jsonresultout = os.path.join(os.getcwd(), "result_syntax.json")
+    fn = args[0]
     start_time = time.time()
 
     try:
         parse(filename=fn, with_progress="--progress" in flags, with_tree=False)
-        print("Valid", file=sys.stderr)
+        if "--json" not in flags:
+            print("Valid", file=sys.stderr)
         exit(0)
     except ValidationError as exc:
-        print(exc, file=sys.stderr)
+        if "--json" not in flags:
+            print(exc, file=sys.stderr)
+        else:
+            import sys
+            import json
+            json.dump(exc.asdict(), sys.stdout)
         exit(1)
