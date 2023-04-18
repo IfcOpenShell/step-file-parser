@@ -98,7 +98,7 @@ enumeration: "." keyword "."
 binary: "\"" ("0"|"1"|"2"|"3") (HEX)* "\"" 
 string: "'" (REVERSE_SOLIDUS REVERSE_SOLIDUS|SPECIAL|DIGIT|LOWER|UPPER|CONTROL_DIRECTIVE|"\\*\\")* "'" 
 
-COMMENT: SLASH STAR (WS|REVERSE_SOLIDUS|SPECIAL|DIGIT|LOWER|UPPER|" ")* STAR SLASH
+COMMENT: SLASH STAR (REVERSE_SOLIDUS|SPECIAL|DIGIT|LOWER|UPPER|APOSTROPHE|" "|"\t"|"\r"|"\n")* STAR SLASH
 STAR: "*"
 SLASH: "/"
 NONE: "$"
@@ -175,7 +175,6 @@ WORD      : CHAR+
 WS: /[ \t\f\r\n]/+
 
 %ignore WS
-%ignore "\n"
 %ignore COMMENT
 """
 
