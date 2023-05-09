@@ -3,6 +3,7 @@ import sys
 import os
 import traceback
 import json
+import re
 
 from collections import defaultdict
 
@@ -296,6 +297,14 @@ def parse(*, filename=None, filecontent=None, with_progress=False, with_tree=Tru
     if filename:
         assert not filecontent
         filecontent = open(filename, encoding=None).read()
+
+        # Match and remove the comments
+        p = r"/\*[\s\S]*?\*/"
+    
+        def replace_fn(match):
+            return re.sub(r"[^\n]", " ", match.group(), flags=re.M)
+
+        filecontent = re.sub(p, replace_fn, filecontent)
 
     instance_identifiers = []
     transformer = {}
