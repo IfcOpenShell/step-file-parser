@@ -74,9 +74,7 @@ class DuplicateNameError(ValidationError):
 
 grammar = r"""
 file: "ISO-10303-21;" header data_section "END-ISO-10303-21;"
-header: "HEADER" ";" header_comment? header_entity_list "ENDSEC" ";"
-header_comment: header_comment_start header_line header_line* "*" (("*")* "/")+
-header_comment_start: "/" "*" "*"* 
+header: "HEADER" ";" header_entity_list "ENDSEC" ";"
 header_line: (SPECIAL|DIGIT|LOWER|UPPER)* "*"
 data_section: "DATA" ";" (entity_instance)* "ENDSEC" ";"
 entity_instance: simple_entity_instance|complex_entity_instance 
@@ -99,7 +97,6 @@ enumeration: "." keyword "."
 binary: "\"" ("0"|"1"|"2"|"3") (HEX)* "\"" 
 string: "'" (REVERSE_SOLIDUS REVERSE_SOLIDUS|SPECIAL|DIGIT|LOWER|UPPER|CONTROL_DIRECTIVE|"\\*\\")* "'" 
 
-COMMENT: SLASH STAR (REVERSE_SOLIDUS|SPECIAL|DIGIT|LOWER|UPPER|APOSTROPHE|" "|"\t"|"\r"|"\n")* STAR SLASH
 STAR: "*"
 SLASH: "/"
 NONE: "$"
@@ -176,7 +173,6 @@ WORD      : CHAR+
 WS: /[ \t\f\r\n]/+
 
 %ignore WS
-%ignore COMMENT
 """
 
 
