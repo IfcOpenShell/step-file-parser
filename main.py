@@ -294,13 +294,13 @@ def parse(*, filename=None, filecontent=None, with_progress=False, with_tree=Tru
         assert not filecontent
         filecontent = open(filename, encoding=None).read()
 
-        # Match and remove the comments
-        p = r"/\*[\s\S]*?\*/"
-    
-        def replace_fn(match):
-            return re.sub(r"[^\n]", " ", match.group(), flags=re.M)
+    # Match and remove the comments
+    p = r"/\*[\s\S]*?\*/"
 
-        filecontent = re.sub(p, replace_fn, filecontent)
+    def replace_fn(match):
+        return re.sub(r"[^\n]", " ", match.group(), flags=re.M)
+
+    filecontent_wo_comments = re.sub(p, replace_fn, filecontent)
 
     instance_identifiers = []
     transformer = {}
@@ -335,7 +335,7 @@ def parse(*, filename=None, filecontent=None, with_progress=False, with_tree=Tru
     parser = Lark(grammar, parser="lalr", start="file", **transformer)
 
     try:
-        ast = parser.parse(filecontent)
+        ast = parser.parse(filecontent_wo_comments)
     except (UnexpectedToken, UnexpectedCharacters) as e:
         raise SyntaxError(filecontent, e)
 
