@@ -1,6 +1,6 @@
 # Step Physical File Validator
 
-Pure-python Step Physical File Validator and Parser implemented using Lark  (`pip install lark-parser`).
+Pure-python Step Physical File Validator and Parser implemented using Lark  (`pip install -r requirements.in`).
 
 ## Example command line usage:
 
