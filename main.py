@@ -27,23 +27,32 @@ class SyntaxError(ValidationError):
             else "unexpected_character",
             "lineno": self.exception.line,
             "column": self.exception.column,
-            "found_type": self.exception.token.type.lower(),
-            "found_value": self.exception.token.value,
-            "expected": sorted(x for x in self.exception.accepts if "__ANON" not in x),
             "line": self.filecontent.split("\n")[self.exception.line - 1],
             **({"message": str(self)} if with_message else {}),
+            **({
+                "found_type": self.exception.token.type.lower(),
+                "found_value": self.exception.token.value,
+                "expected": sorted(x for x in self.exception.accepts if "__ANON" not in x),
+            } if hasattr(self.exception, 'token') and self.exception.token else {})
         }
 
     def __str__(self):
         d = self.asdict(with_message=False)
-        if len(d["expected"]) == 1:
+        if not d.get('expected'):
+            exp = None
+        elif len(d["expected"]) == 1:
             exp = d["expected"][0]
         else:
             exp = f"one of {' '.join(d['expected'])}"
 
         sth = "character" if d["type"] == "unexpected_character" else ""
 
-        return f"On line {d['lineno']} column {d['column']}:\nUnexpected {sth}{d['found_type']} ('{d['found_value']}')\nExpecting {exp}\n{d['lineno']:05d} | {d['line']}\n        {' ' * (self.exception.column - 1)}^"
+        if d.get('found_type') and d.get('found_value'):
+            sth += f"{d['found_type']} ('{d['found_value']}')"
+
+        formatted_exp = f'Expecting {exp}\n' if exp else ''
+
+        return f"On line {d['lineno']} column {d['column']}:\nUnexpected {sth}\n{formatted_exp}{d['lineno']:05d} | {d['line']}\n        {' ' * (self.exception.column - 1)}^"
 
 
 class DuplicateNameError(ValidationError):
@@ -292,7 +301,7 @@ def process_tree(filecontent, file_tree, with_progress):
 def parse(*, filename=None, filecontent=None, with_progress=False, with_tree=True):
     if filename:
         assert not filecontent
-        filecontent = open(filename, encoding=None).read()
+        filecontent = open(filename, encoding='latin-1').read()
 
     # Match and remove the comments
     p = r"/\*[\s\S]*?\*/"
