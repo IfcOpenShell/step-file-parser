@@ -1,7 +1,7 @@
 import glob
 import pytest
 
-from main import parse, ValidationError
+from __init__ import parse, ValidationError
 from contextlib import nullcontext
 
 
