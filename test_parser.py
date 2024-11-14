@@ -1,7 +1,7 @@
 import glob
 import pytest
 
-from __init__ import parse, ValidationError
+from __init__ import parse, open, ValidationError
 from contextlib import nullcontext
 
 
@@ -22,3 +22,11 @@ def test_file_with_tree(file):
 def test_file_without_tree(file):
     with create_context(file):
         parse(filename=file, with_tree=False)
+
+
+def test_parse_features():
+    f = open('fixtures/pass_1.ifc')
+    assert f.by_id(1).id == 1
+    assert f.by_id(1).type == 'IFCPERSON'
+    assert f.by_type('ifcperson')[0].id == 1
+    assert f[1][0] is None
