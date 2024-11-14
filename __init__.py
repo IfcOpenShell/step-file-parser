@@ -352,19 +352,19 @@ def parse(
         rule_names = filter(
             lambda s: not s.startswith("_"), set(r.origin.name for r in temp.rules)
         )
-        null_function = lambda *args: None
+        null_function = lambda self, *args: None
         # Create dictionary of methods for type() creation
         methods = {r: null_function for r in rule_names}
 
         # Even in this case we do want to report duplicate identifiers
         # so these need to be captured
-        methods["id"] = lambda *args: args
-        methods["simple_entity_instance"] = lambda tree: instance_identifiers.append(
+        methods["id"] = lambda self, *args: args
+        methods["simple_entity_instance"] = lambda self, tree: instance_identifiers.append(
             (int(tree[0][0][0][1:]), int(tree[0][0][0].line))
         )
 
         NT = type("NullTransformer", (Transformer,), methods)
-        transformer = {"transformer": NT}
+        transformer = {"transformer": NT()}
 
     parser = Lark(grammar, parser="lalr", start="file", **transformer)
 
