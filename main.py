@@ -28,9 +28,11 @@ class SyntaxError(ValidationError):
 
     def asdict(self, with_message=True):
         return {
-            "type": "unexpected_token"
-            if isinstance(self.exception, UnexpectedToken)
-            else "unexpected_character",
+            "type": (
+                "unexpected_token"
+                if isinstance(self.exception, UnexpectedToken)
+                else "unexpected_character"
+            ),
             "lineno": self.exception.line,
             "column": self.exception.column,
             "found_type": self.exception.token.type.lower(),
@@ -244,15 +246,18 @@ class T(Transformer):
 
 @dataclass
 class entity_instance:
-    id : int
-    type : str
+    id: int
+    type: str
     attributes: tuple
     lines: tuple
+
     def __getitem__(self, k):
         # compatibility with dict
         return getattr(self, k)
+
     def __repr__(self):
         return f'#{self.id}={self.type}({",".join(map(str, self.attributes))})'
+
 
 def create_step_entity(entity_tree):
     entity = {}
@@ -317,7 +322,14 @@ def process_tree(filecontent, file_tree, with_progress, with_header=False):
         return ents
 
 
-def parse(*, filename=None, filecontent=None, with_progress=False, with_tree=True, with_header=False):
+def parse(
+    *,
+    filename=None,
+    filecontent=None,
+    with_progress=False,
+    with_tree=True,
+    with_header=False,
+):
     if filename:
         assert not filecontent
         filecontent = builtins.open(filename, encoding=None).read()
@@ -384,13 +396,14 @@ class file:
     """
     A somewhat compatible interface (but very limited) to ifcopenshell.file
     """
+
     def __init__(self, parse_outcomes):
         self.header_, self.data_ = parse_outcomes
-        
+
     @property
     def schema_identifier(self) -> str:
-        return self.header_['FILE_SCHEMA'][0][0]
-        
+        return self.header_["FILE_SCHEMA"][0][0]
+
     @property
     def schema(self) -> str:
         """General IFC schema version: IFC2X3, IFC4, IFC4X3."""
@@ -403,7 +416,10 @@ class file:
                 ((p, match.group(p)) for p in prefixes),
             )
         )
-        return "".join("".join(map(str, t)) if t[1] else "" for t in zip(prefixes, version_tuple[0:2]))
+        return "".join(
+            "".join(map(str, t)) if t[1] else ""
+            for t in zip(prefixes, version_tuple[0:2])
+        )
 
     @property
     def schema_version(self) -> tuple[int, int, int, int]:
@@ -417,14 +433,14 @@ class file:
             number = re.search(prefix + r"(\d)", schema)
             version.append(int(number.group(1)) if number else 0)
         return tuple(version)
-    
+
     @property
     def header(self):
         return types.SimpleNamespace(**{k.lower(): v for k, v in self.header_.items()})
 
     def __getitem__(self, key: numbers.Integral) -> entity_instance:
         return self.by_id(key)
-        
+
     def by_id(self, id: int) -> entity_instance:
         """Return an IFC entity instance filtered by IFC ID.
 
@@ -447,10 +463,17 @@ class file:
         :rtype: list[entity_instance]
         """
         type_lc = type.lower()
-        return list(filter(lambda ent: ent.type.lower() == type_lc, itertools.chain.from_iterable(self.data_.values())))
+        return list(
+            filter(
+                lambda ent: ent.type.lower() == type_lc,
+                itertools.chain.from_iterable(self.data_.values()),
+            )
+        )
+
 
 def open(fn) -> file:
     return file(parse(filename=fn, with_tree=True, with_header=True))
+
 
 if __name__ == "__main__":
     args = [x for x in sys.argv[1:] if not x.startswith("-")]
