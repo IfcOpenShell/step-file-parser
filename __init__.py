@@ -2,16 +2,11 @@ import builtins
 from dataclasses import dataclass
 import itertools
 import numbers
-import time
 import sys
-import os
-import traceback
-import json
 import re
 
 from collections import defaultdict
 import types
-import typing
 
 from lark import Lark, Transformer, Tree, Token
 from lark.exceptions import UnexpectedToken, UnexpectedCharacters
@@ -260,7 +255,6 @@ class entity_instance:
 
 
 def create_step_entity(entity_tree):
-    entity = {}
     t = T(visit_tokens=True).transform(entity_tree)
 
     def get_line_number(t):
@@ -473,26 +467,3 @@ class file:
 
 def open(fn) -> file:
     return file(parse(filename=fn, with_tree=True, with_header=True))
-
-
-if __name__ == "__main__":
-    args = [x for x in sys.argv[1:] if not x.startswith("-")]
-    flags = [x for x in sys.argv[1:] if x.startswith("-")]
-
-    fn = args[0]
-    start_time = time.time()
-
-    try:
-        parse(filename=fn, with_progress="--progress" in flags, with_tree=False)
-        if "--json" not in flags:
-            print("Valid", file=sys.stderr)
-        exit(0)
-    except ValidationError as exc:
-        if "--json" not in flags:
-            print(exc, file=sys.stderr)
-        else:
-            import sys
-            import json
-
-            json.dump(exc.asdict(), sys.stdout)
-        exit(1)
