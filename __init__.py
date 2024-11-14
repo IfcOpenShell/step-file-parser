@@ -235,7 +235,7 @@ class T(Transformer):
     subsuper_record = list
     INT = int
     REAL = float
-    NONE = str
+    NONE = lambda *args: None
     STAR = str
 
 
@@ -247,8 +247,11 @@ class entity_instance:
     lines: tuple
 
     def __getitem__(self, k):
-        # compatibility with dict
-        return getattr(self, k)
+        if isinstance(k, numbers.Integral):
+            return self.attributes[k]
+        else:
+            # compatibility with dict
+            return getattr(self, k)
 
     def __repr__(self):
         return f'#{self.id}={self.type}({",".join(map(str, self.attributes))})'
@@ -359,8 +362,10 @@ def parse(
         # Even in this case we do want to report duplicate identifiers
         # so these need to be captured
         methods["id"] = lambda self, *args: args
-        methods["simple_entity_instance"] = lambda self, tree: instance_identifiers.append(
-            (int(tree[0][0][0][1:]), int(tree[0][0][0].line))
+        methods["simple_entity_instance"] = (
+            lambda self, tree: instance_identifiers.append(
+                (int(tree[0][0][0][1:]), int(tree[0][0][0].line))
+            )
         )
 
         NT = type("NullTransformer", (Transformer,), methods)
@@ -450,7 +455,7 @@ class file:
             raise RuntimeError(f"Instance with id {id} not found")
         elif len(ns) > 1:
             raise RuntimeError(f"Duplicate definition for id {id}")
-        return entity_instance(ns, ns[0])
+        return ns[0]
 
     def by_type(self, type: str) -> list[entity_instance]:
         """Return IFC objects filtered by IFC Type and wrapped with the entity_instance class.
