@@ -98,7 +98,7 @@ untyped_parameter: string| NONE |INT |REAL |enumeration |id |binary |list
 omitted_parameter:STAR
 enumeration: "." keyword "."
 binary: "\"" ("0"|"1"|"2"|"3") (HEX)* "\"" 
-string: "'" (REVERSE_SOLIDUS REVERSE_SOLIDUS|SPECIAL|DIGIT|LOWER|UPPER|CONTROL_DIRECTIVE|"\\*\\")* "'" 
+string: "'" (REVERSE_SOLIDUS REVERSE_SOLIDUS|SPECIAL|DIGIT|SPACE|LOWER|UPPER|CONTROL_DIRECTIVE|"\\*\\")* "'"
 
 STAR: "*"
 SLASH: "/"
@@ -139,7 +139,7 @@ REAL: SIGN?  DIGIT  (DIGIT)* "." (DIGIT)* ("E"  SIGN?  DIGIT (DIGIT)* )?
 INT: SIGN? DIGIT  (DIGIT)* 
 CONTROL_DIRECTIVE: PAGE | ALPHABET | EXTENDED2 | EXTENDED4 | ARBITRARY 
 PAGE : REVERSE_SOLIDUS "S" REVERSE_SOLIDUS LATIN_CODEPOINT
-LATIN_CODEPOINT : DIGIT | LOWER | UPPER | SPECIAL | REVERSE_SOLIDUS | APOSTROPHE
+LATIN_CODEPOINT : SPACE | DIGIT | LOWER | UPPER | SPECIAL | REVERSE_SOLIDUS | APOSTROPHE
 ALPHABET : REVERSE_SOLIDUS "P" UPPER REVERSE_SOLIDUS 
 EXTENDED2: REVERSE_SOLIDUS "X2" REVERSE_SOLIDUS (HEX_TWO)* END_EXTENDED 
 EXTENDED4 :REVERSE_SOLIDUS "X4" REVERSE_SOLIDUS (HEX_FOUR)* END_EXTENDED 
@@ -173,9 +173,9 @@ UPPER: "A".."Z"
 ESCAPE    : "\\" ( "$" | "\"" | CHAR )
 CHAR      : /[^$"\n]/
 WORD      : CHAR+
-WS: /[ \t\f\r\n]/+
+SPACE.10  : " "
 
-%ignore WS
+%ignore /[ \t\f\r\n]/+
 """
 
 
@@ -205,7 +205,7 @@ class T(Transformer):
         return int(s[0][1:])
 
     def string(self, s):
-        word = "".join(s)
+        word = "".join(s).replace("''", "'")
         return word
 
     def keyword(self, s):

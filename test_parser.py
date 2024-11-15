@@ -30,3 +30,5 @@ def test_parse_features():
     assert f.by_id(1).type == 'IFCPERSON'
     assert f.by_type('ifcperson')[0].id == 1
     assert f[1][0] is None
+    assert f.header.file_description[0][0] == 'ViewDefinition [CoordinationView]'
+    assert f.by_type('ifcapplication')[1][2] == "Nested ' quotes"
