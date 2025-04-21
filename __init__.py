@@ -16,6 +16,63 @@ class ValidationError(Exception):
     pass
 
 
+HEADER_FIELDS = {
+    "file_description": [
+        "description",
+        "implementation_level",
+    ],
+    "file_name": [
+        "name",
+        "time_stamp",
+        "author",
+        "organization",
+        "preprocessor_version",
+        "originating_system",
+        "authorization",
+    ],
+    "file_schema": [
+        "schema_identifiers",
+    ],
+}
+
+class HeaderWrapper:
+    def __init__(self, field_names, values):
+        self._fields = field_names
+        self._values = values
+        for k, v in zip(field_names, values):
+            setattr(self, k, v)
+
+    def __getitem__(self, index):
+        """
+        Allows for the object to be subscriptable, avoiding conflicts with the validation service. Can be removed after service is fully compatible.
+        e.g.
+        >>> f.header.file_name[0]
+        'Header example2.ifc'
+        >>> f.header.file_name.name
+        'Header example2.ifc'
+        """
+        return self._values[index]
+
+    def __len__(self):
+        return len(self._values)
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __repr__(self):
+        """
+        Representing custom header object when debugging, e.g. 
+        >>> f.header.file_name
+        <HeaderWrapper name='Header example2.ifc', time_stamp='2022-09-16T10:35:07',
+        author=('Evandro Alfieri',), organization=('buildingSMART Int.',), 
+        preprocessor_version='IFC Motor 1.0', originating_system='Company - Application - 26.0.0.0',
+        authorization='none'>
+        """
+        return f"<{self.__class__.__name__} " + ", ".join(
+            f"{k}={repr(getattr(self, k))}" for k in self._fields
+        ) + ">"
+
+
 class SyntaxError(ValidationError):
     def __init__(self, filecontent, exception):
         self.filecontent = filecontent
@@ -433,9 +490,26 @@ class file:
             version.append(int(number.group(1)) if number else 0)
         return tuple(version)
 
+    # @property
+    # def header(self):
+    #     mapping = {
+    #         "file_description": file_description,
+    #         "file_name": file_name,
+    #         "file_schema": file_schema,
+    #     }
+
+    #     return types.SimpleNamespace(**{
+    #         k.lower(): mapping[k.lower()](v)
+    #         for k, v in self.header_.items()
+    #         if k.lower() in mapping
+    #     })
     @property
     def header(self):
-        return types.SimpleNamespace(**{k.lower(): v for k, v in self.header_.items()})
+        return types.SimpleNamespace(**{
+            name: HeaderWrapper(fields, self.header_[name.upper()])
+            for name, fields in HEADER_FIELDS.items()
+            if name.upper() in self.header_
+        })
 
     def __getitem__(self, key: numbers.Integral) -> entity_instance:
         return self.by_id(key)
@@ -472,3 +546,22 @@ class file:
 
 def open(fn) -> file:
     return file(parse(filename=fn, with_tree=True, with_header=True))
+
+class file_description:
+    def __init__(self, values):
+        self.description = values[0]
+        self.implementation_level = values[1]
+
+class file_name:
+    def __init__(self, values):
+        self.name = values[0]
+        self.time_stamp = values[1]
+        self.author = values[2]
+        self.organization = values[3]
+        self.preprocessor_version = values[4]
+        self.originating_system = values[5]
+        self.authorization = values[6]
+
+class file_schema:
+    def __init__(self, values):
+        self.schema_identifiers = values[0]
