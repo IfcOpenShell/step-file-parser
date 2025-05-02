@@ -327,10 +327,14 @@ def parse(
     with_progress=False,
     with_tree=True,
     with_header=False,
+    only_header=False
 ):
     if filename:
         assert not filecontent
         filecontent = builtins.open(filename, encoding=None).read()
+        
+    if only_header:
+        assert with_header, "'only_header=True' requires 'with_header=True'"
 
     # Match and remove the comments
     p = r"/\*[\s\S]*?\*/"
@@ -339,6 +343,37 @@ def parse(
         return re.sub(r"[^\n]", " ", match.group(), flags=re.M)
 
     filecontent_wo_comments = re.sub(p, replace_fn, filecontent)
+    
+        
+    if only_header:
+        # Extract just the HEADER section using regex
+        header_match = re.search(
+            r"ISO-10303-21;\s*HEADER;(.*?)ENDSEC;",
+            filecontent_wo_comments,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+        if not header_match:
+            raise ValidationError("No HEADER section found in file")
+
+        header_text = f"HEADER;{header_match.group(1)}ENDSEC;"
+        full_header_text = f"ISO-10303-21;{header_text}DATA;ENDSEC;END-ISO-10303-21;"
+
+        parser = Lark(grammar, parser="lalr", start="file")
+        try:
+            ast = parser.parse(full_header_text)
+        except (UnexpectedToken, UnexpectedCharacters) as e:
+            raise SyntaxError(filecontent, e)
+
+        header_tree = ast.children[0]  # HEADER section
+
+        def make_header_ent(ast):
+            kw, param_list = ast.children
+            kw = kw.children[0].value
+            return kw, T(visit_tokens=True).transform(param_list)
+
+        header = dict(map(make_header_ent, header_tree.children[0].children))
+        return header
+    
 
     instance_identifiers = []
     transformer = {}
@@ -483,5 +518,20 @@ class file:
         )
 
 
-def open(fn) -> file:
-    return file(parse(filename=fn, with_tree=True, with_header=True))
+def open(fn, only_header: bool = False) -> file:
+    if only_header: # Ensure consistent options
+        parse_outcomes = parse(
+            filename=fn,
+            with_tree=True,
+            with_header=True,  # must be True to return the header
+            only_header=True,
+        )
+        return file((parse_outcomes, defaultdict(list)))  # data section is empty
+    else:
+        parse_outcomes = parse(
+            filename=fn,
+            with_tree=True,
+            with_header=True,
+            only_header=False,
+        )
+        return file(parse_outcomes)
