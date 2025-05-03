@@ -10,7 +10,7 @@ import types
 
 from lark import Lark, Transformer, Tree, Token
 from lark.exceptions import UnexpectedToken, UnexpectedCharacters
-from ifcopenshell.util.mvd_info import MvdInfo, LARK_AVAILABLE
+from .mvd_info import MvdInfo, LARK_AVAILABLE
 
 class ValidationError(Exception):
     pass
