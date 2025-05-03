@@ -10,7 +10,7 @@ import types
 
 from lark import Lark, Transformer, Tree, Token
 from lark.exceptions import UnexpectedToken, UnexpectedCharacters
-
+from ifcopenshell.util.mvd_info import MvdInfo, LARK_AVAILABLE
 
 class ValidationError(Exception):
     pass
@@ -484,6 +484,13 @@ class file:
             header[field_name.lower()] = namedtuple_class(*field_data)
 
         return types.SimpleNamespace(**header)
+    
+    
+    @property
+    def mvd(self):
+        if not LARK_AVAILABLE or MvdInfo is None:
+            return None
+        return MvdInfo(self.header)
 
     def __getitem__(self, key: numbers.Integral) -> entity_instance:
         return self.by_id(key)
