@@ -5,7 +5,7 @@ FILE_NAME('','2022-05-04T08:08:30',(''),(''),'IfcOpenShell-0.7.0','IfcOpenShell-
 FILE_SCHEMA(('IFC4'));
 ENDSEC;
 DATA;
-#1=IFCPERSON($,$,'',,$,$,$,$);
+#1=IFCPERSON($,$,'',$,$,$,$);
 #2=IFCORGANIZATION($,'',$,$,$);
 #3=IFCPERSONANDORGANIZATION(#1,#2,$);
 #4=IFCAPPLICATION(#2,'0.7.0','IfcOpenShell-0.7.0','');
