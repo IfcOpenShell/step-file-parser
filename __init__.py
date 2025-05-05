@@ -10,7 +10,10 @@ import types
 
 from lark import Lark, Transformer, Tree, Token
 from lark.exceptions import UnexpectedToken, UnexpectedCharacters
-from .mvd_info import MvdInfo, LARK_AVAILABLE
+try:
+    from .mvd_info import MvdInfo, LARK_AVAILABLE
+except ImportError: # in case of running module locally (e.g. test_parser.py)
+    from mvd_info import MvdInfo, LARK_AVAILABLE
 
 class ValidationError(Exception):
     pass
@@ -87,8 +90,10 @@ complex_entity_instance: id "=" subsuper_record ";"
 subsuper_record : "(" simple_record_list ")" 
 simple_record_list:simple_record simple_record* 
 simple_record: keyword "("parameter_list?")"
-header_entity :keyword "(" parameter_list ")" ";" 
-header_entity_list: header_entity header_entity* 
+header_entity_list: file_description file_name file_schema
+file_description: "FILE_DESCRIPTION" "(" parameter_list ")" ";"
+file_name: "FILE_NAME" "(" parameter_list ")" ";"
+file_schema: "FILE_SCHEMA" "(" parameter_list ")" ";"
 id: /#[0-9]+/
 keyword: /[A-Z][0-9A-Z_]*/
 parameter: untyped_parameter|typed_parameter|omitted_parameter
@@ -285,16 +290,17 @@ def create_step_entity(entity_tree):
         attributes,
         (min(lines), max(lines)),
     )
+    
+def make_header_ent(ast):
+    rule = ast.data
+    params = T(visit_tokens=True).transform(ast.children[0])
+    return rule.upper(), params
+
 
 
 def process_tree(filecontent, file_tree, with_progress, with_header=False):
     ents = defaultdict(list)
     header, data = file_tree.children
-
-    def make_header_ent(ast):
-        kw, param_list = ast.children
-        kw = kw.children[0].value
-        return kw, T(visit_tokens=True).transform(param_list)
 
     if with_header:
         header = dict(map(make_header_ent, header.children[0].children))
@@ -365,11 +371,6 @@ def parse(
             raise SyntaxError(filecontent, e)
 
         header_tree = ast.children[0]  # HEADER section
-
-        def make_header_ent(ast):
-            kw, param_list = ast.children
-            kw = kw.children[0].value
-            return kw, T(visit_tokens=True).transform(param_list)
 
         header = dict(map(make_header_ent, header_tree.children[0].children))
         return header

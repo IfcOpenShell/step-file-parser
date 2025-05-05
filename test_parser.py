@@ -104,3 +104,5 @@ def test_file_mvd_attr():
     assert 'Ramp' in f.mvd.options['ExcludedObjects']
     assert f.mvd.Remark['SomeKey'] == 'SomeValue'
     assert len(f.mvd.comments) == 2
+    assert all(v in vars(f.header).keys() for v in ['file_description', 'file_name', 'file_schema'])
+    assert len(f.header.file_name) == 7
