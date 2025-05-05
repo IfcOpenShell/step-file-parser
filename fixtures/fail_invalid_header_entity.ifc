@@ -3,6 +3,22 @@ HEADER;
 FILE_DESCRIPTION(('ViewDefinition [Alignment-basedView]'),'2;1');
 FILE_NAME('Header example2.ifc', '2022-09-16T10:35:07', ('Evandro Alfieri'), ('buildingSMART Int.'), 'IFC Motor 1.0', 'Company - Application - 26.0.0.0', 'none');
 FILE_SCHEMA(('IFC4X3_ADD2'));
+FILE_INFO(
+'Report Date', '2025-04-21 18:16:37',
+'IFC Schema', 'IFC2X3',
+'MVD(s)', 'None',
+'File Name in Header', 'generated (2).ifc',
+'File Name', 'generated (2).ifc',
+'File Size', '0.41 kB',
+'File Date', '2025-04-21 18:16:37',
+'Originating System', 'PHP Script',
+'Preprocessor Version', '1.0.0',
+'Company Name', 'Your Company Name',
+'Application Name', 'IFC Generator PHP Script',
+'Application Version', '1.0.0',
+'Author', 'Your Name',
+'Organization', 'Your Company Name'
+);
 ENDSEC;
 DATA;
 #1=IFCPERSON($,$,'',$,$,$,$,$);
