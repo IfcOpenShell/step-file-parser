@@ -91,9 +91,9 @@ subsuper_record : "(" simple_record_list ")"
 simple_record_list:simple_record simple_record* 
 simple_record: keyword "("parameter_list?")"
 header_entity_list: file_description file_name file_schema
-file_description: "FILE_DESCRIPTION" "(" parameter_list ")" ";"
-file_name: "FILE_NAME" "(" parameter_list ")" ";"
-file_schema: "FILE_SCHEMA" "(" parameter_list ")" ";"
+file_description: "FILE_DESCRIPTION" "(" parameter "," parameter ")" ";"
+file_name: "FILE_NAME" "(" parameter "," parameter "," parameter "," parameter "," parameter "," parameter "," parameter ")" ";"
+file_schema: "FILE_SCHEMA" "(" parameter ")" ";"
 id: /#[0-9]+/
 keyword: /[A-Z][0-9A-Z_]*/
 parameter: untyped_parameter|typed_parameter|omitted_parameter
