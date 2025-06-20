@@ -1,42 +1,38 @@
 import sys
-import time
+import json
+import argparse
 from . import parse, ValidationError
 
-if __name__ == "__main__":
-    args = [x for x in sys.argv[1:] if not x.startswith("-")]
-    flags = [x for x in sys.argv[1:] if x.startswith("-")]
-
-    filename = args[0]
-    start_time = time.time()
+def main():
+    parser = argparse.ArgumentParser(description="Parse and validate STEP file.")
+    parser.add_argument("filename", help="The STEP file to validate.")
+    parser.add_argument("--progress", action="store_true", help="Show progress during validation.")
+    parser.add_argument("--json", action="store_true", help="Output errors in JSON format.")
+    parser.add_argument("--only-header", action="store_true", help="Validate only the header section.")
+    parser.add_argument("--only-data", action="store_true", help="Validate only the data section.")
     
-    with_progress = "--progress" in flags
-    json_output = "--json" in flags
-    only_header = "--header-only" in flags
-    validate_data_only = "--data-only" in flags
-    
-    
-    # Sanity check: can't use both at once
-    if only_header and validate_data_only:
-        print("Cannot use both --header-only and --data-only at the same time", file=sys.stderr)
+    args = parser.parse_args()
+    if args.only_header and args.only_data:
+        print("Cannot use both --only-header and --only-data at the same time", file=sys.stderr)
         sys.exit(2)
-
+        
     try:
         parse(
-            filename=filename,
-            with_progress=with_progress,
-            with_tree=False,
-            only_header=only_header,
-            validate_data_only=validate_data_only,
+            filename=args.filename,
+            with_progress = args.progress,
+            with_tree = False,
+            only_header=args.only_header,
+            validate_data_only = args.only_data
         )
-        if not json_output:
+        if not args.json:
             print("Valid", file=sys.stderr)
         exit(0)
     except ValidationError as exc:
-        if not json_output:
+        if not args.json:
             print(exc, file=sys.stderr)
         else:
-            import sys
-            import json
-
             json.dump(exc.asdict(), sys.stdout)
         exit(1)
+
+if __name__ == '__main__':
+    main()    
