@@ -126,23 +126,3 @@ def test_valid_headers(filename):
     # error in body; with_header should not raise an error
     with nullcontext():
         parse(filename=filename, with_tree=False, only_header=True, with_header=True)
-        
-
-@pytest.mark.parametrize("filename", [
-    'fixtures/fail_invalid_header_entity.ifc',
-    'fixtures/fail_no_header.ifc',
-])
-def test_invalid_headers_(filename):
-    # error in header; validate_data_only should not raise an error
-    with nullcontext():
-        parse(filename=filename, validate_data_only=True)
-
-@pytest.mark.parametrize("filename", [
-    'fixtures/fail_duplicate_id.ifc',
-    'fixtures/fail_double_comma.ifc',
-    'fixtures/fail_double_semi.ifc'
-])
-def test_valid_headers(filename):
-    # error in body; validate_data_only should raise an error
-    with pytest.raises(ValidationError):
-        parse(filename=filename, validate_data_only=True)

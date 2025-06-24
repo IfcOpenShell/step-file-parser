@@ -334,12 +334,7 @@ def parse(
     with_tree=True,
     with_header=False,
     only_header=False,
-    validate_data_only=False
 ):
-    if validate_data_only: # Used by the Validation Service to validate only the data section of an IFC file, ignoring the header.
-        only_header = False
-        with_header = False
-        with_tree= False
     if filename:
         assert not filecontent
         filecontent = builtins.open(filename, encoding=None).read()
@@ -412,20 +407,8 @@ def parse(
 
         NT = type("NullTransformer", (Transformer,), methods)
         transformer = {"transformer": NT()}
-        
-    if validate_data_only:
-        match = re.search(
-            r"DATA\s*;(.*?)ENDSEC\s*;",
-            filecontent_wo_comments,
-            flags=re.DOTALL | re.IGNORECASE,
-        )
-        if not match:
-            raise ValidationError("No DATA section found in file")
-        filecontent_wo_comments = f"DATA;{match.group(1)}ENDSEC;"
-        start_rule = "data_section"
-    else:# Parse entire file (header + data)
-        start_rule = "file"
-    parser = Lark(grammar, parser="lalr", start=start_rule, **transformer)
+
+    parser = Lark(grammar, parser="lalr", start="file", **transformer)
 
     try:
         ast = parser.parse(filecontent_wo_comments)
