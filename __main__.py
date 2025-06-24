@@ -11,7 +11,7 @@ def main():
     parser.add_argument("--only-header", action="store_true", help="Validate only the header section.")
     
     args = parser.parse_args()
-    if args.only_header and args.only_data:
+    if args.only_header:
         print("Cannot use both --only-header and --only-data at the same time", file=sys.stderr)
         sys.exit(2)
         
