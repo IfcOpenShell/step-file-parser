@@ -9,7 +9,6 @@ def main():
     parser.add_argument("--progress", action="store_true", help="Show progress during validation.")
     parser.add_argument("--json", action="store_true", help="Output errors in JSON format.")
     parser.add_argument("--only-header", action="store_true", help="Validate only the header section.")
-    parser.add_argument("--only-data", action="store_true", help="Validate only the data section.")
     
     args = parser.parse_args()
     if args.only_header and args.only_data:
@@ -22,7 +21,6 @@ def main():
             with_progress = args.progress,
             with_tree = False,
             only_header=args.only_header,
-            validate_data_only = args.only_data
         )
         if not args.json:
             print("Valid", file=sys.stderr)
