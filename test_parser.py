@@ -106,3 +106,23 @@ def test_file_mvd_attr():
     assert len(f.mvd.comments) == 2
     assert all(v in vars(f.header).keys() for v in ['file_description', 'file_name', 'file_schema'])
     assert len(f.header.file_name) == 7
+
+
+@pytest.mark.parametrize("filename", [
+    'fixtures/fail_invalid_header_entity.ifc',
+    'fixtures/fail_no_header.ifc',
+])
+def test_invalid_headers_(filename):
+    # error in header; with_header should raise an error
+    with pytest.raises(ValidationError):
+        parse(filename=filename, with_tree=False, only_header=True, with_header=True)
+
+@pytest.mark.parametrize("filename", [
+    'fixtures/fail_duplicate_id.ifc',
+    'fixtures/fail_double_comma.ifc',
+    'fixtures/fail_double_semi.ifc'
+])
+def test_valid_headers(filename):
+    # error in body; with_header should not raise an error
+    with nullcontext():
+        parse(filename=filename, with_tree=False, only_header=True, with_header=True)

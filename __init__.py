@@ -333,14 +333,14 @@ def parse(
     with_progress=False,
     with_tree=True,
     with_header=False,
-    only_header=False
+    only_header=False,
 ):
     if filename:
         assert not filecontent
         filecontent = builtins.open(filename, encoding=None).read()
         
     if only_header:
-        assert with_header, "'only_header=True' requires 'with_header=True'"
+        with_header = True
 
     # Match and remove the comments
     p = r"/\*[\s\S]*?\*/"
