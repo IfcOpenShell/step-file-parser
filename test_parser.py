@@ -126,3 +126,12 @@ def test_valid_headers(filename):
     # error in body; with_header should not raise an error
     with nullcontext():
         parse(filename=filename, with_tree=False, only_header=True, with_header=True)
+
+def test_too_many_header_entity_fields():
+    with pytest.raises(ValidationError):
+        parse(filename='fixtures/too_many_header_entity_fields.ifc', only_header=True)
+
+def test_too_many_header_entity_fields_whole_file():
+    with pytest.raises(ValidationError):
+        parse(filename='fixtures/too_many_header_entity_fields.ifc', with_header=True)
+        

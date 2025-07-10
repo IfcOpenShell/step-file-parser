@@ -77,6 +77,27 @@ class DuplicateNameError(ValidationError):
             yield " " * 8 + "^" * len(d["line"].rstrip())
 
         return "\n".join(build())
+    
+class HeaderFieldError(ValidationError):
+    def __init__(self, field, found_len, expected_len):
+        self.field = field
+        self.found_len = found_len
+        self.expected_len = expected_len
+
+    def asdict(self, with_message=True):
+        return {
+            "type": "invalid_header_field",
+            "field": self.field,
+            "expected_field_count": self.expected_len,
+            "actual_field_count": self.found_len,
+            **({"message": str(self)} if with_message else {}),
+        }
+
+    def __str__(self):
+        return (
+            f"Invalid number of parameters for HEADER field '{self.field}'. "
+            f"Expected {self.expected_len}, found {self.found_len}."
+        )
 
 
 grammar = r"""
@@ -91,9 +112,9 @@ subsuper_record : "(" simple_record_list ")"
 simple_record_list:simple_record simple_record* 
 simple_record: keyword "("parameter_list?")"
 header_entity_list: file_description file_name file_schema
-file_description: "FILE_DESCRIPTION" "(" parameter "," parameter ")" ";"
-file_name: "FILE_NAME" "(" parameter "," parameter "," parameter "," parameter "," parameter "," parameter "," parameter ")" ";"
-file_schema: "FILE_SCHEMA" "(" parameter ")" ";"
+file_description: "FILE_DESCRIPTION" "(" parameter_list ")" ";"
+file_name: "FILE_NAME" "(" parameter_list ")" ";"
+file_schema: "FILE_SCHEMA" "(" parameter_list ")" ";"
 id: /#[0-9]+/
 keyword: /[A-Z][0-9A-Z_]*/
 parameter: untyped_parameter|typed_parameter|omitted_parameter
@@ -183,6 +204,12 @@ SPACE.10  : " "
 
 %ignore /[ \t\f\r\n]/+
 """
+
+HEADER_FIELDS = {
+    "file_description": namedtuple('file_description', ['description', 'implementation_level']),
+    "file_name": namedtuple('file_name', ['name', 'time_stamp', 'author', 'organization', 'preprocessor_version', 'originating_system', 'authorization']),
+    "file_schema":  namedtuple('file_schema', ['schema_identifiers']),
+}
 
 
 class Ref:
@@ -304,6 +331,11 @@ def process_tree(filecontent, file_tree, with_progress, with_header=False):
 
     if with_header:
         header = dict(map(make_header_ent, header.children[0].children))
+        for field in HEADER_FIELDS.keys():
+            observed = header.get(field.upper(), [])
+            expected = HEADER_FIELDS.get(field)._fields
+            if len(header.get(field.upper(), [])) != len(expected):
+                raise HeaderFieldError(field.upper(), len(observed), len(expected))
 
     n = len(data.children)
     if n:
@@ -373,6 +405,11 @@ def parse(
         header_tree = ast.children[0]  # HEADER section
 
         header = dict(map(make_header_ent, header_tree.children[0].children))
+        for field in HEADER_FIELDS.keys():
+            observed = header.get(field.upper(), [])
+            expected = HEADER_FIELDS.get(field)._fields
+            if len(header.get(field.upper(), [])) != len(expected):
+                raise HeaderFieldError(field.upper(), len(observed), len(expected))
         return header
     
 
@@ -473,13 +510,7 @@ class file:
 
     @property
     def header(self):
-        HEADER_FIELDS = {
-            "file_description": namedtuple('file_description', ['description', 'implementation_level']),
-            "file_name": namedtuple('file_name', ['name', 'time_stamp', 'author', 'organization', 'preprocessor_version', 'originating_system', 'authorization']),
-            "file_schema":  namedtuple('file_schema', ['schema_identifiers']),
-        }
         header = {}
-
         for field_name, namedtuple_class in HEADER_FIELDS.items():
             field_data = self.header_.get(field_name.upper(), [])
             header[field_name.lower()] = namedtuple_class(*field_data)
