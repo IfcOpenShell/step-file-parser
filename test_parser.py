@@ -32,9 +32,11 @@ def test_parse_features():
     f = open('fixtures/pass_1.ifc')
     assert f.by_id(1).id == 1
     assert f.by_id(1).type == 'IFCPERSON'
+    assert f.data_[1][0].type == 'IFCPERSON'
     assert f.by_type('ifcperson')[0].id == 1
     assert f[1][0] is None
     assert f.header.file_description[0][0] == 'ViewDefinition [CoordinationView]'
+    assert f.header_.get('FILE_DESCRIPTION')[0][0]
     assert f.by_type('ifcapplication')[1][2] == "Nested ' quotes"
 
 

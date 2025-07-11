@@ -278,6 +278,11 @@ class entity_instance:
     def __repr__(self):
         return f'#{self.id}={self.type}({",".join(map(str, self.attributes))})'
 
+@dataclass
+class ParseResult:
+    header: dict
+    entities: dict[int, list[entity_instance]]
+
 
 def create_step_entity(entity_tree):
     t = T(visit_tokens=True).transform(entity_tree)
@@ -352,7 +357,7 @@ def parse(
     with_progress=False,
     with_tree=True,
     only_header=False,
-):
+) -> ParseResult:
     if filename:
         assert not filecontent
         filecontent = builtins.open(filename, encoding=None).read()
@@ -388,7 +393,10 @@ def parse(
 
         header = dict(map(make_header_ent, header_tree.children[0].children))
         validate_header_fields(header)
-        return header
+        return ParseResult(
+            header = header,
+            entities = defaultdict(list)
+        )
     
 
     instance_identifiers = []
@@ -431,7 +439,11 @@ def parse(
         raise SyntaxError(filecontent, e)
     
     if with_tree:
-        return process_tree(filecontent, ast, with_progress)
+        header, data = process_tree(filecontent, ast, with_progress)
+        return ParseResult(
+            header = header, 
+            entities = data
+        )
     else:
         # process_tree() would take care of duplicate identifiers,
         # but we need to do it ourselves now using our rudimentary
@@ -448,8 +460,9 @@ class file:
     A somewhat compatible interface (but very limited) to ifcopenshell.file
     """
 
-    def __init__(self, parse_outcomes):
-        self.header_, self.data_ = parse_outcomes
+    def __init__(self, result:ParseResult):
+        self.header_ = result.header
+        self.data_ = result.entities
 
     @property
     def schema_identifier(self) -> str:
@@ -536,17 +549,4 @@ class file:
 
 
 def open(fn, only_header: bool = False) -> file:
-    if only_header: # Ensure consistent options
-        parse_outcomes = parse(
-            filename=fn,
-            with_tree=True,
-            only_header=True,
-        )
-        return file((parse_outcomes, defaultdict(list)))  # data section is empty
-    else:
-        parse_outcomes = parse(
-            filename=fn,
-            with_tree=True,
-            only_header=False,
-        )
-        return file(parse_outcomes)
+    return file(parse(filename=fn, only_header=only_header))
