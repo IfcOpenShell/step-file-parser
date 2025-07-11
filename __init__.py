@@ -77,6 +77,27 @@ class DuplicateNameError(ValidationError):
             yield " " * 8 + "^" * len(d["line"].rstrip())
 
         return "\n".join(build())
+    
+class HeaderFieldError(ValidationError):
+    def __init__(self, field, found_len, expected_len):
+        self.field = field
+        self.found_len = found_len
+        self.expected_len = expected_len
+
+    def asdict(self, with_message=True):
+        return {
+            "type": "invalid_header_field",
+            "field": self.field,
+            "expected_field_count": self.expected_len,
+            "actual_field_count": self.found_len,
+            **({"message": str(self)} if with_message else {}),
+        }
+
+    def __str__(self):
+        return (
+            f"Invalid number of parameters for HEADER field '{self.field}'. "
+            f"Expected {self.expected_len}, found {self.found_len}."
+        )
 
 
 grammar = r"""
@@ -184,16 +205,11 @@ SPACE.10  : " "
 %ignore /[ \t\f\r\n]/+
 """
 
-
-class Ref:
-    def __init__(self, id):
-        self.id = id
-
-    def __str__(self):
-        return "#" + str(self.id)
-
-    __repr__ = __str__
-
+HEADER_FIELDS = {
+    "file_description": namedtuple('file_description', ['description', 'implementation_level']),
+    "file_name": namedtuple('file_name', ['name', 'time_stamp', 'author', 'organization', 'preprocessor_version', 'originating_system', 'authorization']),
+    "file_schema":  namedtuple('file_schema', ['schema_identifiers']),
+}
 
 class IfcType:
     def __init__(self, ifctype, value):
@@ -262,6 +278,11 @@ class entity_instance:
     def __repr__(self):
         return f'#{self.id}={self.type}({",".join(map(str, self.attributes))})'
 
+@dataclass
+class ParseResult:
+    header: dict
+    entities: dict[int, list[entity_instance]]
+
 
 def create_step_entity(entity_tree):
     t = T(visit_tokens=True).transform(entity_tree)
@@ -296,14 +317,20 @@ def make_header_ent(ast):
     params = T(visit_tokens=True).transform(ast.children[0])
     return rule.upper(), params
 
+def validate_header_fields(header):
+    for field in HEADER_FIELDS.keys():
+        observed = header.get(field.upper(), [])
+        expected = HEADER_FIELDS.get(field)._fields
+        if len(header.get(field.upper(), [])) != len(expected):
+            raise HeaderFieldError(field.upper(), len(observed), len(expected))
 
 
-def process_tree(filecontent, file_tree, with_progress, with_header=False):
+def process_tree(filecontent, file_tree, with_progress):
     ents = defaultdict(list)
     header, data = file_tree.children
 
-    if with_header:
-        header = dict(map(make_header_ent, header.children[0].children))
+    header = dict(map(make_header_ent, header.children[0].children))
+    validate_header_fields(header)
 
     n = len(data.children)
     if n:
@@ -320,10 +347,7 @@ def process_tree(filecontent, file_tree, with_progress, with_header=False):
             raise DuplicateNameError(filecontent, ent["id"], ent["lines"])
         ents[id_].append(ent)
 
-    if with_header:
-        return header, ents
-    else:
-        return ents
+    return header, ents
 
 
 def parse(
@@ -332,15 +356,11 @@ def parse(
     filecontent=None,
     with_progress=False,
     with_tree=True,
-    with_header=False,
     only_header=False,
-):
+) -> ParseResult:
     if filename:
         assert not filecontent
         filecontent = builtins.open(filename, encoding=None).read()
-        
-    if only_header:
-        with_header = True
 
     # Match and remove the comments
     p = r"/\*[\s\S]*?\*/"
@@ -349,8 +369,7 @@ def parse(
         return re.sub(r"[^\n]", " ", match.group(), flags=re.M)
 
     filecontent_wo_comments = re.sub(p, replace_fn, filecontent)
-    
-        
+
     if only_header:
         # Extract just the HEADER section using regex
         header_match = re.search(
@@ -373,7 +392,11 @@ def parse(
         header_tree = ast.children[0]  # HEADER section
 
         header = dict(map(make_header_ent, header_tree.children[0].children))
-        return header
+        validate_header_fields(header)
+        return ParseResult(
+            header = header,
+            entities = defaultdict(list)
+        )
     
 
     instance_identifiers = []
@@ -414,9 +437,13 @@ def parse(
         ast = parser.parse(filecontent_wo_comments)
     except (UnexpectedToken, UnexpectedCharacters) as e:
         raise SyntaxError(filecontent, e)
-
+    
     if with_tree:
-        return process_tree(filecontent, ast, with_progress, with_header)
+        header, data = process_tree(filecontent, ast, with_progress)
+        return ParseResult(
+            header = header, 
+            entities = data
+        )
     else:
         # process_tree() would take care of duplicate identifiers,
         # but we need to do it ourselves now using our rudimentary
@@ -433,8 +460,9 @@ class file:
     A somewhat compatible interface (but very limited) to ifcopenshell.file
     """
 
-    def __init__(self, parse_outcomes):
-        self.header_, self.data_ = parse_outcomes
+    def __init__(self, result:ParseResult):
+        self.header_ = result.header
+        self.data_ = result.entities
 
     @property
     def schema_identifier(self) -> str:
@@ -473,13 +501,7 @@ class file:
 
     @property
     def header(self):
-        HEADER_FIELDS = {
-            "file_description": namedtuple('file_description', ['description', 'implementation_level']),
-            "file_name": namedtuple('file_name', ['name', 'time_stamp', 'author', 'organization', 'preprocessor_version', 'originating_system', 'authorization']),
-            "file_schema":  namedtuple('file_schema', ['schema_identifiers']),
-        }
         header = {}
-
         for field_name, namedtuple_class in HEADER_FIELDS.items():
             field_data = self.header_.get(field_name.upper(), [])
             header[field_name.lower()] = namedtuple_class(*field_data)
@@ -527,19 +549,4 @@ class file:
 
 
 def open(fn, only_header: bool = False) -> file:
-    if only_header: # Ensure consistent options
-        parse_outcomes = parse(
-            filename=fn,
-            with_tree=True,
-            with_header=True,  # must be True to return the header
-            only_header=True,
-        )
-        return file((parse_outcomes, defaultdict(list)))  # data section is empty
-    else:
-        parse_outcomes = parse(
-            filename=fn,
-            with_tree=True,
-            with_header=True,
-            only_header=False,
-        )
-        return file(parse_outcomes)
+    return file(parse(filename=fn, only_header=only_header))
