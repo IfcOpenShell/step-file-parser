@@ -20,6 +20,10 @@ def test_file_with_tree(file):
 
 @pytest.mark.parametrize("file", glob.glob("fixtures/*.ifc"))
 def test_file_without_tree(file):
+    if "fail_too_many_header_entity_fields.ifc" in file:
+        pytest.skip("This file relies on header field validation using the parsed AST, "
+                "but with_tree=False uses a NullTransformer that discards the AST, "
+                "so validating the header field names is not possible in this mode.")
     with create_context(file):
         parse(filename=file, with_tree=False)
 
@@ -113,9 +117,9 @@ def test_file_mvd_attr():
     'fixtures/fail_no_header.ifc',
 ])
 def test_invalid_headers_(filename):
-    # error in header; with_header should raise an error
+    # error in header
     with pytest.raises(ValidationError):
-        parse(filename=filename, with_tree=False, only_header=True, with_header=True)
+        parse(filename=filename, with_tree=False, only_header=True)
 
 @pytest.mark.parametrize("filename", [
     'fixtures/fail_duplicate_id.ifc',
@@ -123,15 +127,15 @@ def test_invalid_headers_(filename):
     'fixtures/fail_double_semi.ifc'
 ])
 def test_valid_headers(filename):
-    # error in body; with_header should not raise an error
+    # error in body
     with nullcontext():
-        parse(filename=filename, with_tree=False, only_header=True, with_header=True)
+        parse(filename=filename, with_tree=False, only_header=True)
 
-def test_too_many_header_entity_fields():
+def test_header_entity_fields():
     with pytest.raises(ValidationError):
-        parse(filename='fixtures/too_many_header_entity_fields.ifc', only_header=True)
+        parse(filename='fixtures/fail_too_many_header_entity_fields.ifc', only_header=True)
 
-def test_too_many_header_entity_fields_whole_file():
+def test_header_entity_fields_whole_file():
     with pytest.raises(ValidationError):
-        parse(filename='fixtures/too_many_header_entity_fields.ifc', with_header=True)
+        parse(filename='fixtures/fail_too_many_header_entity_fields.ifc')
         

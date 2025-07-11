@@ -211,17 +211,6 @@ HEADER_FIELDS = {
     "file_schema":  namedtuple('file_schema', ['schema_identifiers']),
 }
 
-
-class Ref:
-    def __init__(self, id):
-        self.id = id
-
-    def __str__(self):
-        return "#" + str(self.id)
-
-    __repr__ = __str__
-
-
 class IfcType:
     def __init__(self, ifctype, value):
         self.ifctype = ifctype
@@ -323,19 +312,20 @@ def make_header_ent(ast):
     params = T(visit_tokens=True).transform(ast.children[0])
     return rule.upper(), params
 
+def validate_header_fields(header):
+    for field in HEADER_FIELDS.keys():
+        observed = header.get(field.upper(), [])
+        expected = HEADER_FIELDS.get(field)._fields
+        if len(header.get(field.upper(), [])) != len(expected):
+            raise HeaderFieldError(field.upper(), len(observed), len(expected))
 
 
-def process_tree(filecontent, file_tree, with_progress, with_header=False):
+def process_tree(filecontent, file_tree, with_progress):
     ents = defaultdict(list)
     header, data = file_tree.children
 
-    if with_header:
-        header = dict(map(make_header_ent, header.children[0].children))
-        for field in HEADER_FIELDS.keys():
-            observed = header.get(field.upper(), [])
-            expected = HEADER_FIELDS.get(field)._fields
-            if len(header.get(field.upper(), [])) != len(expected):
-                raise HeaderFieldError(field.upper(), len(observed), len(expected))
+    header = dict(map(make_header_ent, header.children[0].children))
+    validate_header_fields(header)
 
     n = len(data.children)
     if n:
@@ -352,10 +342,7 @@ def process_tree(filecontent, file_tree, with_progress, with_header=False):
             raise DuplicateNameError(filecontent, ent["id"], ent["lines"])
         ents[id_].append(ent)
 
-    if with_header:
-        return header, ents
-    else:
-        return ents
+    return header, ents
 
 
 def parse(
@@ -364,15 +351,11 @@ def parse(
     filecontent=None,
     with_progress=False,
     with_tree=True,
-    with_header=False,
     only_header=False,
 ):
     if filename:
         assert not filecontent
         filecontent = builtins.open(filename, encoding=None).read()
-        
-    if only_header:
-        with_header = True
 
     # Match and remove the comments
     p = r"/\*[\s\S]*?\*/"
@@ -381,8 +364,7 @@ def parse(
         return re.sub(r"[^\n]", " ", match.group(), flags=re.M)
 
     filecontent_wo_comments = re.sub(p, replace_fn, filecontent)
-    
-        
+
     if only_header:
         # Extract just the HEADER section using regex
         header_match = re.search(
@@ -405,11 +387,7 @@ def parse(
         header_tree = ast.children[0]  # HEADER section
 
         header = dict(map(make_header_ent, header_tree.children[0].children))
-        for field in HEADER_FIELDS.keys():
-            observed = header.get(field.upper(), [])
-            expected = HEADER_FIELDS.get(field)._fields
-            if len(header.get(field.upper(), [])) != len(expected):
-                raise HeaderFieldError(field.upper(), len(observed), len(expected))
+        validate_header_fields(header)
         return header
     
 
@@ -451,9 +429,9 @@ def parse(
         ast = parser.parse(filecontent_wo_comments)
     except (UnexpectedToken, UnexpectedCharacters) as e:
         raise SyntaxError(filecontent, e)
-
+    
     if with_tree:
-        return process_tree(filecontent, ast, with_progress, with_header)
+        return process_tree(filecontent, ast, with_progress)
     else:
         # process_tree() would take care of duplicate identifiers,
         # but we need to do it ourselves now using our rudimentary
@@ -562,7 +540,6 @@ def open(fn, only_header: bool = False) -> file:
         parse_outcomes = parse(
             filename=fn,
             with_tree=True,
-            with_header=True,  # must be True to return the header
             only_header=True,
         )
         return file((parse_outcomes, defaultdict(list)))  # data section is empty
@@ -570,7 +547,6 @@ def open(fn, only_header: bool = False) -> file:
         parse_outcomes = parse(
             filename=fn,
             with_tree=True,
-            with_header=True,
             only_header=False,
         )
         return file(parse_outcomes)
