@@ -26,7 +26,7 @@ def main():
         if not args.json:
             print(exc, file=sys.stderr)
         else:
-            json.dump(exc.asdict(), sys.stdout)
+            json.dump([e.asdict() for e in getattr(exc, "errors", [exc])], sys.stdout, indent=2)
         exit(1)
 
 if __name__ == '__main__':
