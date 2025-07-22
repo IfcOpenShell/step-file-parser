@@ -1,7 +1,7 @@
 import glob
 import pytest
 
-from __init__ import parse, open, ValidationError
+from __init__ import parse, open, ValidationError, CollectedValidationErrors, DuplicateNameError, HeaderFieldError
 from contextlib import nullcontext
 
 
@@ -140,4 +140,21 @@ def test_header_entity_fields():
 def test_header_entity_fields_whole_file():
     with pytest.raises(ValidationError):
         parse(filename='fixtures/fail_too_many_header_entity_fields.ifc')
-        
+
+def test_header_entity_fields_whole_file():
+    with pytest.raises(CollectedValidationErrors) as exc_info:
+        parse(filename="fixtures/fail_multiple_duplicate_ids.ifc")
+
+    errors = exc_info.value.errors
+    
+    assert len(errors) == 2
+    assert all(isinstance(e, DuplicateNameError) for e in errors)
+
+def test_multiple_wrong_header_fields():
+    with pytest.raises(CollectedValidationErrors) as exc_info:
+        parse(filename="fixtures/fail_multiple_wrong_header_fields.ifc")
+
+    errors = exc_info.value.errors
+    
+    assert len(errors) == 2
+    assert all(isinstance(e, HeaderFieldError) for e in errors)
