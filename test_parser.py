@@ -20,7 +20,7 @@ def test_file_with_tree(file):
 
 @pytest.mark.parametrize("file", glob.glob("fixtures/*.ifc"))
 def test_file_without_tree(file):
-    if "fail_too_many_header_entity_fields.ifc" in file:
+    if any(sub in file for sub in ["fail_too_many_header_entity_fields.ifc", "fail_multiple_wrong_header_fields"]):
         pytest.skip("This file relies on header field validation using the parsed AST, "
                 "but with_tree=False uses a NullTransformer that discards the AST, "
                 "so validating the header field names is not possible in this mode.")
