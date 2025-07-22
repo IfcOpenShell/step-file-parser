@@ -1,7 +1,7 @@
 import glob
 import pytest
 
-from __init__ import parse, open, ValidationError
+from __init__ import parse, open, ValidationError, CollectedValidationErrors, DuplicateNameError, HeaderFieldError
 from contextlib import nullcontext
 
 
@@ -20,6 +20,10 @@ def test_file_with_tree(file):
 
 @pytest.mark.parametrize("file", glob.glob("fixtures/*.ifc"))
 def test_file_without_tree(file):
+    if any(sub in file for sub in ["fail_too_many_header_entity_fields.ifc", "fail_multiple_wrong_header_fields"]):
+        pytest.skip("This file relies on header field validation using the parsed AST, "
+                "but with_tree=False uses a NullTransformer that discards the AST, "
+                "so validating the header field names is not possible in this mode.")
     with create_context(file):
         parse(filename=file, with_tree=False)
 
@@ -28,9 +32,11 @@ def test_parse_features():
     f = open('fixtures/pass_1.ifc')
     assert f.by_id(1).id == 1
     assert f.by_id(1).type == 'IFCPERSON'
+    assert f.data_[1][0].type == 'IFCPERSON'
     assert f.by_type('ifcperson')[0].id == 1
     assert f[1][0] is None
     assert f.header.file_description[0][0] == 'ViewDefinition [CoordinationView]'
+    assert f.header_.get('FILE_DESCRIPTION')[0][0]
     assert f.by_type('ifcapplication')[1][2] == "Nested ' quotes"
 
 
@@ -113,9 +119,9 @@ def test_file_mvd_attr():
     'fixtures/fail_no_header.ifc',
 ])
 def test_invalid_headers_(filename):
-    # error in header; with_header should raise an error
+    # error in header
     with pytest.raises(ValidationError):
-        parse(filename=filename, with_tree=False, only_header=True, with_header=True)
+        parse(filename=filename, with_tree=False, only_header=True)
 
 @pytest.mark.parametrize("filename", [
     'fixtures/fail_duplicate_id.ifc',
@@ -123,6 +129,32 @@ def test_invalid_headers_(filename):
     'fixtures/fail_double_semi.ifc'
 ])
 def test_valid_headers(filename):
-    # error in body; with_header should not raise an error
+    # error in body
     with nullcontext():
-        parse(filename=filename, with_tree=False, only_header=True, with_header=True)
+        parse(filename=filename, with_tree=False, only_header=True)
+
+def test_header_entity_fields():
+    with pytest.raises(ValidationError):
+        parse(filename='fixtures/fail_too_many_header_entity_fields.ifc', only_header=True)
+
+def test_header_entity_fields_whole_file():
+    with pytest.raises(ValidationError):
+        parse(filename='fixtures/fail_too_many_header_entity_fields.ifc')
+
+def test_header_entity_fields_whole_file():
+    with pytest.raises(CollectedValidationErrors) as exc_info:
+        parse(filename="fixtures/fail_multiple_duplicate_ids.ifc")
+
+    errors = exc_info.value.errors
+    
+    assert len(errors) == 2
+    assert all(isinstance(e, DuplicateNameError) for e in errors)
+
+def test_multiple_wrong_header_fields():
+    with pytest.raises(CollectedValidationErrors) as exc_info:
+        parse(filename="fixtures/fail_multiple_wrong_header_fields.ifc")
+
+    errors = exc_info.value.errors
+    
+    assert len(errors) == 2
+    assert all(isinstance(e, HeaderFieldError) for e in errors)
