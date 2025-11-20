@@ -7,6 +7,8 @@ except ImportError:
 
 import re
 
+from typing import Union
+
 if LARK_AVAILABLE:
     mvd_grammar = r'''
         start: entry+
@@ -109,7 +111,7 @@ if LARK_AVAILABLE:
             parsed_description.view_definitions = None
         return parsed_description
 
-    def parse_semicolon_separated_kv(text: str) -> dict[str, str | list[str]] | None:
+    def parse_semicolon_separated_kv(text: str) -> Union[dict[str, Union[str, list[str]]], None]:
         if not re.search(r'\w+\s*:\s*[^:]+', text):
             return None
         result = {}
@@ -168,7 +170,7 @@ class MvdInfo:
         )
 
     @view_definitions.setter
-    def view_definitions(self, new_value: str | list[str]):
+    def view_definitions(self, new_value: Union[str, list[str]]):
         if isinstance(new_value, list):
             value = ", ".join(new_value)
         else:
@@ -187,7 +189,7 @@ class MvdInfo:
         )
 
     @comments.setter
-    def comments(self, new_value: str | list[str]):
+    def comments(self, new_value: Union[str, list[str]]):
         if isinstance(new_value, list):
             value = ", ".join(new_value)
         else:
