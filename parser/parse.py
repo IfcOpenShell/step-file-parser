@@ -43,12 +43,17 @@ def process_tree(filecontent, file_tree, with_progress, error_collector):
             sys.stdout.flush()
         ent = create_step_entity(entity_tree)
         id_ = int(ent["id"])
+        if id_ == 0:
+            error_collector.add(InvalidNameError(filecontent, ent["id"], ent["lines"]))
         if ents[id_]:
-            error_collector.add(DuplicateNameError(filecontent, ent["id"], ent["lines"]))
+            error_collector.add(
+                DuplicateNameError(filecontent, ent["id"], ent["lines"])
+            )
         else:
             ents[id_].append(ent)
 
     return header, ents
+
 
 def parse(
     *,
@@ -148,19 +153,22 @@ def parse(
 
     if with_tree:
         header, data = process_tree(filecontent, ast, with_progress, error_collector)
-        error_collector.raise_if_any() 
-        return ParseResult(
-            header = header, 
-            entities = data
-        )
+        error_collector.raise_if_any()
+        return ParseResult(header=header, entities=data)
     else:
         # process_tree() would take care of duplicate identifiers,
         # but we need to do it ourselves now using our rudimentary
         # transformer
         seen = set()
         for iden, lineno in instance_identifiers:
+            if iden == 0:
+                error_collector.add(
+                    InvalidNameError(filecontent, iden, [lineno, lineno])
+                )
             if iden in seen:
-                error_collector.add(DuplicateNameError(filecontent, iden, [lineno, lineno]))
+                error_collector.add(
+                    DuplicateNameError(filecontent, iden, [lineno, lineno])
+                )
             else:
                 seen.add(iden)
         error_collector.raise_if_any()

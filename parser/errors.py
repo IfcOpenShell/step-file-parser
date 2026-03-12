@@ -106,3 +106,29 @@ class HeaderFieldError(_ValidationError):
             f"Invalid number of parameters for HEADER field '{self.field}'. "
             f"Expected {self.expected_len}, found {self.found_len}."
         )
+
+
+class InvalidNameError(_ValidationError):
+    def __init__(self, filecontent, name, linenumbers):
+        self.name = name
+        self.filecontent = filecontent
+        self.linenumbers = linenumbers
+
+    def asdict(self, with_message=True):
+        return {
+            "type": "invalid_name",
+            "name": self.name,
+            "lineno": self.linenumbers[0],
+            "line": self.filecontent.split("\n")[self.linenumbers[0] - 1],
+            **({"message": str(self)} if with_message else {}),
+        }
+
+    def __str__(self):
+        d = self.asdict(with_message=False)
+
+        def build():
+            yield f"On line {d['lineno']}:\nInvalid instance name #{d['name']}"
+            yield f"{d['lineno']:05d} | {d['line']}"
+            yield " " * 8 + "^" * len(d["line"].rstrip())
+
+        return "\n".join(build())
