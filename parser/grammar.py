@@ -106,7 +106,20 @@ SPACE.10  : " "
 """
 
 HEADER_FIELDS = {
-    "file_description": namedtuple('file_description', ['description', 'implementation_level']),
-    "file_name": namedtuple('file_name', ['name', 'time_stamp', 'author', 'organization', 'preprocessor_version', 'originating_system', 'authorization']),
-    "file_schema":  namedtuple('file_schema', ['schema_identifiers']),
+    "file_description": namedtuple(
+        "file_description", ["description", "implementation_level"]
+    ),
+    "file_name": namedtuple(
+        "file_name",
+        [
+            "name",
+            "time_stamp",
+            "author",
+            "organization",
+            "preprocessor_version",
+            "originating_system",
+            "authorization",
+        ],
+    ),
+    "file_schema": namedtuple("file_schema", ["schema_identifiers"]),
 }

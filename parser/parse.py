@@ -1,29 +1,44 @@
 from dataclasses import dataclass
 from collections import defaultdict
-import re 
+import re
 import sys
 import builtins
 from lark import Lark, UnexpectedCharacters, UnexpectedToken
 
 # import transformer
-from .transformer import Transformer, entity_instance, make_header_ent, create_step_entity
+from .transformer import (
+    Transformer,
+    entity_instance,
+    make_header_ent,
+    create_step_entity,
+)
 from .grammar import grammar, HEADER_FIELDS
-from .errors import HeaderFieldError, DuplicateNameError, ErrorCollector, SyntaxError
+from .errors import (
+    HeaderFieldError,
+    DuplicateNameError,
+    ErrorCollector,
+    SyntaxError,
+    InvalidNameError,
+)
 
-def validate_header_fields(header, error_collector, only_header = False):
+
+def validate_header_fields(header, error_collector, only_header=False):
     for field in HEADER_FIELDS.keys():
         observed = header.get(field.upper(), [])
         expected = HEADER_FIELDS.get(field)._fields
         if len(observed) != len(expected):
-            error_collector.add(HeaderFieldError(field.upper(), len(observed), len(expected)))
+            error_collector.add(
+                HeaderFieldError(field.upper(), len(observed), len(expected))
+            )
             if only_header:
                 error_collector.raise_if_any()
+
 
 @dataclass
 class ParseResult:
     header: dict
     entities: dict[int, list[entity_instance]]
-    
+
 
 def process_tree(filecontent, file_tree, with_progress, error_collector):
     ents = defaultdict(list)
@@ -84,9 +99,9 @@ def parse(
             flags=re.DOTALL | re.IGNORECASE,
         )
         if not header_match:
-            error_collector.add(HeaderFieldError(
-                'header', '', 'No HEADER section found in file'
-            ))
+            error_collector.add(
+                HeaderFieldError("header", "", "No HEADER section found in file")
+            )
             error_collector.raise_if_any()
 
         header_text = f"HEADER;{header_match.group(1)}ENDSEC;"
@@ -99,17 +114,12 @@ def parse(
             error_collector.add(SyntaxError(filecontent, e))
             error_collector.raise_if_any()  # Immediately abort in case of critical error
 
-
         header_tree = ast.children[0]  # HEADER section
 
         header = dict(map(make_header_ent, header_tree.children[0].children))
         validate_header_fields(header, error_collector, only_header=True)
-        error_collector.raise_if_any() 
-        return ParseResult(
-            header = header,
-            entities = defaultdict(list)
-        )
-    
+        error_collector.raise_if_any()
+        return ParseResult(header=header, entities=defaultdict(list))
 
     instance_identifiers = []
     transformer = {}
@@ -119,7 +129,7 @@ def parse(
         # just returns None for every rule. lark creates a dictionary
         # of callbacks from the transformer type object, so we can't
         # simply use __getattr__ we need an actual type objects with
-        # callback functions for the rules given in the 
+        # callback functions for the rules given in the
 
         # Create a temporary parser just for analysing the grammar
         temp = Lark(grammar, parser="lalr", start="file")
@@ -144,7 +154,7 @@ def parse(
         transformer = {"transformer": NT()}
 
     parser = Lark(grammar, parser="lalr", start="file", **transformer)
-    
+
     try:
         ast = parser.parse(filecontent_wo_comments)
     except (UnexpectedToken, UnexpectedCharacters) as e:

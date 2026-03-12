@@ -1,5 +1,5 @@
 import types
-import re 
+import re
 import numbers
 import itertools
 
@@ -9,15 +9,16 @@ from .transformer import entity_instance
 
 try:
     from .mvd_info import MvdInfo, LARK_AVAILABLE
-except ImportError: # in case of running module locally (e.g. test_parser.py)
+except ImportError:  # in case of running module locally (e.g. test_parser.py)
     from mvd_info import MvdInfo, LARK_AVAILABLE
+
 
 class file:
     """
     A somewhat compatible interface (but very limited) to ifcopenshell.file
     """
 
-    def __init__(self, result:ParseResult):
+    def __init__(self, result: ParseResult):
         self.header_ = result.header
         self.data_ = result.entities
 
@@ -48,13 +49,12 @@ class file:
 
         E.g. IFC4X3_ADD2 is represented as (4, 3, 2, 0).
         """
-        schema = self.wrapped_data.schema
+        schema = self.schema
         version = []
         for prefix in ("IFC", "X", "_ADD", "_TC"):
             number = re.search(prefix + r"(\d)", schema)
             version.append(int(number.group(1)) if number else 0)
         return tuple(version)
-
 
     @property
     def header(self):
@@ -64,8 +64,7 @@ class file:
             header[field_name.lower()] = namedtuple_class(*field_data)
 
         return types.SimpleNamespace(**header)
-    
-    
+
     @property
     def mvd(self):
         if not LARK_AVAILABLE or MvdInfo is None:
@@ -104,5 +103,6 @@ class file:
             )
         )
 
-def open(fn, only_header= False) -> file:
+
+def open(fn, only_header=False) -> file:
     return file(parse(filename=fn, only_header=only_header))

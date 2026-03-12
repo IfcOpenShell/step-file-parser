@@ -1,10 +1,12 @@
 from lark.exceptions import UnexpectedToken
 
+
 class _ValidationError(Exception):
     def __init__(self, *args, **kwargs):
         if self.__class__ is _ValidationError:
             raise TypeError("Do not raise _ValidationError directly.")
         super().__init__(*args, **kwargs)
+
 
 class ErrorCollector:
     def __init__(self):
@@ -17,15 +19,19 @@ class ErrorCollector:
         if self.errors:
             raise CollectedValidationErrors(self.errors)
 
+
 class CollectedValidationErrors(_ValidationError):
     def __init__(self, errors):
         self.errors = errors
-        
+
     def asdict(self, with_message=True):
         return [e.asdict(with_message=with_message) for e in self.errors]
 
     def __str__(self):
-        return f"{len(self.errors)} validation error(s) collected:\n" + "\n\n".join(str(e) for e in self.errors)
+        return f"{len(self.errors)} validation error(s) collected:\n" + "\n\n".join(
+            str(e) for e in self.errors
+        )
+
 
 class SyntaxError(_ValidationError):
     def __init__(self, filecontent, exception):
@@ -84,8 +90,8 @@ class DuplicateNameError(_ValidationError):
             yield " " * 8 + "^" * len(d["line"].rstrip())
 
         return "\n".join(build())
-    
-    
+
+
 class HeaderFieldError(_ValidationError):
     def __init__(self, field, found_len, expected_len):
         self.field = field

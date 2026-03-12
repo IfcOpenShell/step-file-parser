@@ -14,6 +14,7 @@ class IfcType:
 
     __repr__ = __str__
 
+
 @dataclass
 class entity_instance:
     id: int
@@ -98,6 +99,7 @@ def create_step_entity(entity_tree):
         attributes,
         (min(lines), max(lines)),
     )
+
 
 def make_header_ent(ast):
     rule = ast.data
