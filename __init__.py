@@ -8,7 +8,7 @@ try:
         HeaderFieldError,
         InvalidNameError,
     )
-except:
+except ImportError:
     from .parser.parse import parse
     from .parser.file import file, open
     from .parser.errors import (

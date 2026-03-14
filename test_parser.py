@@ -1,4 +1,7 @@
 import glob
+import json
+import os
+import subprocess
 import pytest
 
 try:
@@ -10,7 +13,7 @@ try:
         DuplicateNameError,
         HeaderFieldError,
     )
-except:
+except ImportError:
     from __init__ import (
         parse,
         open,
@@ -25,7 +28,7 @@ from contextlib import nullcontext
 
 def create_context(fn):
     if "fail_" in fn:
-        return pytest.raises(_ValidationError)
+        return pytest.raises(CollectedValidationErrors)
     else:
         return nullcontext()
 
@@ -186,7 +189,7 @@ def test_header_entity_fields_whole_file():
         parse(filename="fixtures/fail_too_many_header_entity_fields.ifc")
 
 
-def test_header_entity_fields_whole_file():
+def test_multiple_duplicate_ids():
     with pytest.raises(CollectedValidationErrors) as exc_info:
         parse(filename="fixtures/fail_multiple_duplicate_ids.ifc")
 
@@ -204,3 +207,34 @@ def test_multiple_wrong_header_fields():
 
     assert len(errors) == 2
     assert all(isinstance(e, HeaderFieldError) for e in errors)
+
+
+REPO_DIR = os.path.dirname(os.path.abspath(__file__))
+PARENT_DIR = os.path.dirname(REPO_DIR)
+MODULE_NAME = os.path.basename(REPO_DIR)
+
+
+def run_cli(*args):
+    return subprocess.run(
+        ["python", "-m", MODULE_NAME, *args],
+        capture_output=True, text=True, cwd=PARENT_DIR,
+    )
+
+
+def test_cli_valid_file():
+    result = run_cli("step-file-parser/fixtures/passing_header.ifc")
+    assert result.returncode == 0
+    assert "Valid" in result.stderr
+
+
+def test_cli_invalid_file():
+    result = run_cli("step-file-parser/fixtures/fail_no_header.ifc")
+    assert result.returncode == 1
+
+
+def test_cli_json_output():
+    result = run_cli("--json", "step-file-parser/fixtures/fail_no_header.ifc")
+    assert result.returncode == 1
+    errors = json.loads(result.stdout)
+    assert isinstance(errors, list)
+    assert len(errors) > 0
