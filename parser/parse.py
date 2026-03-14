@@ -80,7 +80,8 @@ def parse(
 ) -> ParseResult:
     error_collector = ErrorCollector()
     if filename:
-        assert not filecontent
+        if filecontent:
+            raise ValueError("Cannot specify both filename and filecontent")
         filecontent = builtins.open(filename, encoding=None).read()
 
     # Match and remove the comments

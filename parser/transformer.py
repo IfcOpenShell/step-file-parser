@@ -1,4 +1,3 @@
-from lark import Transformer
 from dataclasses import dataclass
 import numbers
 from lark import Lark, Transformer, Tree, Token
