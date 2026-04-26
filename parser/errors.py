@@ -1,4 +1,6 @@
-from lark.exceptions import UnexpectedToken
+from typing import Any, Optional
+
+from lark.exceptions import UnexpectedToken, UnexpectedCharacters
 
 
 class _ValidationError(Exception):
@@ -39,17 +41,31 @@ class SyntaxError(_ValidationError):
         self.exception = exception
 
     def asdict(self, with_message=True):
+        def get_type_token_and_expected(exc: Exception) -> tuple[str, str, str, list]:
+            match (exc):
+                case UnexpectedToken():
+                    return (
+                        "unexpected_token",
+                        exc.token.type.lower(),
+                        exc.token.value,
+                        sorted(x for x in self.exception.accepts if "__ANON" not in x),
+                    )
+                case UnexpectedCharacters():
+                    return "unexpected_character", "character", hex(ord(exc.char)), []
+                case _:
+                    raise TypeError(f"Unexpected exception type {type(exc)}")
+
+        exception_type, token_type, token_value, expected = get_type_token_and_expected(
+            self.exception
+        )
+
         return {
-            "type": (
-                "unexpected_token"
-                if isinstance(self.exception, UnexpectedToken)
-                else "unexpected_character"
-            ),
+            "type": exception_type,
             "lineno": self.exception.line,
             "column": self.exception.column,
-            "found_type": self.exception.token.type.lower(),
-            "found_value": self.exception.token.value,
-            "expected": sorted(x for x in self.exception.accepts if "__ANON" not in x),
+            "found_type": token_type,
+            "found_value": token_value,
+            "expected": expected,
             "line": self.filecontent.split("\n")[self.exception.line - 1],
             **({"message": str(self)} if with_message else {}),
         }
@@ -61,9 +77,7 @@ class SyntaxError(_ValidationError):
         else:
             exp = f"one of {' '.join(d['expected'])}"
 
-        sth = "character" if d["type"] == "unexpected_character" else ""
-
-        return f"On line {d['lineno']} column {d['column']}:\nUnexpected {sth}{d['found_type']} ('{d['found_value']}')\nExpecting {exp}\n{d['lineno']:05d} | {d['line']}\n        {' ' * (self.exception.column - 1)}^"
+        return f"On line {d['lineno']} column {d['column']}:\nUnexpected {d['found_type']} ('{d['found_value']}')\nExpecting {exp}\n{d['lineno']:05d} | {d['line']}\n        {' ' * (self.exception.column - 1)}^"
 
 
 class DuplicateNameError(_ValidationError):

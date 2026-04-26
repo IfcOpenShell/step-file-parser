@@ -217,7 +217,9 @@ MODULE_NAME = os.path.basename(REPO_DIR)
 def run_cli(*args):
     return subprocess.run(
         ["python", "-m", MODULE_NAME, *args],
-        capture_output=True, text=True, cwd=PARENT_DIR,
+        capture_output=True,
+        text=True,
+        cwd=PARENT_DIR,
     )
 
 
