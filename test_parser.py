@@ -163,9 +163,12 @@ def test_file_mvd_attr():
     ]
 )
 def test_invalid_headers_(filename):
-    # error in header
-    with pytest.raises(_ValidationError):
+    
+    with pytest.raises(CollectedValidationErrors) as exc_info:
         parse(filename=filename, with_tree=False, only_header=True)
+
+    errors = exc_info.value.errors
+    assert len(errors) > 0
 
 
 @pytest.mark.parametrize(
@@ -177,21 +180,34 @@ def test_invalid_headers_(filename):
     ],
 )
 def test_valid_headers(filename):
-    # error in body
+    
+    # error are in body, not in the header
     with nullcontext():
         parse(filename=filename, with_tree=False, only_header=True)
 
 
-def test_header_entity_fields():
-    with pytest.raises(_ValidationError):
-        parse(
-            filename="fixtures/fail_too_many_header_entity_fields.ifc", only_header=True
-        )
+def test_too_many_header_entity_fields():
+    with pytest.raises(_ValidationError) as exc_info:
+        parse(filename="fixtures/fail_too_many_header_entity_fields.ifc", only_header=True)
+
+    errors = str(exc_info.value)
+
+    assert len(errors) > 0
+    assert "1 validation error(s) collected" in errors
+    assert "Invalid number of parameters for HEADER field 'FILE_NAME'." in errors
+    assert "Expected 7, found 8." in errors
 
 
 def test_header_entity_fields_whole_file():
-    with pytest.raises(_ValidationError):
+    with pytest.raises(_ValidationError) as exc_info:
         parse(filename="fixtures/fail_too_many_header_entity_fields.ifc")
+
+    errors = str(exc_info.value)
+    
+    assert len(errors) > 0
+    assert "1 validation error(s) collected" in errors
+    assert "Invalid number of parameters for HEADER field 'FILE_NAME'." in errors
+    assert "Expected 7, found 8." in errors
 
 
 def test_multiple_duplicate_ids():
@@ -202,7 +218,9 @@ def test_multiple_duplicate_ids():
 
     assert len(errors) == 2
     assert all(isinstance(e, DuplicateNameError) for e in errors)
-
+    assert all("On line" in str(e) for e in errors)
+    assert all("Duplicate instance name" in str(e) for e in errors)
+    
 
 def test_multiple_wrong_header_fields():
     with pytest.raises(CollectedValidationErrors) as exc_info:
@@ -212,6 +230,7 @@ def test_multiple_wrong_header_fields():
 
     assert len(errors) == 3
     assert all(isinstance(e, HeaderFieldError) for e in errors)
+    assert all("Invalid number of parameters for HEADER field" in str(e) for e in errors)
 
 
 REPO_DIR = os.path.dirname(os.path.abspath(__file__))
