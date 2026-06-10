@@ -23,6 +23,8 @@ from .errors import (
 
 
 def validate_header_fields(header, error_collector, only_header=False):
+    
+    # all required fields present
     for field in HEADER_FIELDS.keys():
         observed = header.get(field.upper(), [])
         expected = HEADER_FIELDS.get(field)._fields
@@ -32,6 +34,16 @@ def validate_header_fields(header, error_collector, only_header=False):
             )
             if only_header:
                 error_collector.raise_if_any()
+
+    # implementation level should be present and equal to "2;1"
+    file_description = header.get('FILE_DESCRIPTION')
+    implementation_level = None if len(file_description) < 2 else file_description[1]
+    if implementation_level != "2;1":
+        error_collector.add(
+            HeaderFieldError("IMPLEMENTATION_LEVEL", implementation_level, "2;1")
+        )
+        if only_header:
+            error_collector.raise_if_any()
 
 
 @dataclass

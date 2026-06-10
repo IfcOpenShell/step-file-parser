@@ -46,6 +46,8 @@ def test_file_without_tree(file):
         for sub in [
             "fail_too_many_header_entity_fields.ifc",
             "fail_multiple_wrong_header_fields",
+            "fail_missing_implementation_level.ifc",
+            "fail_wrong_implementation_level.ifc"
         ]
     ):
         pytest.skip(
@@ -66,11 +68,12 @@ def test_parse_features():
     assert f[1][0] is None
     assert f.header.file_description[0][0] == "ViewDefinition [CoordinationView]"
     assert f.header_.get("FILE_DESCRIPTION")[0][0]
+    assert f.header_.get("FILE_DESCRIPTION")[1] == "2;1"
     assert f.by_type("ifcapplication")[1][2] == "Nested ' quotes"
 
 
 def test_parse_valid_header():
-    f = open("fixtures/passing_header.ifc")
+    f = open("fixtures/pass_header.ifc")
 
     expected_description = {
         "description": ("ViewDefinition [Alignment-basedView]",),
@@ -102,7 +105,7 @@ def test_parse_valid_header():
 
 
 def test_header_only_api():
-    f = open("fixtures/passing_header.ifc", only_header=True)
+    f = open("fixtures/pass_header.ifc", only_header=True)
     expected_description = {
         "description": ("ViewDefinition [Alignment-basedView]",),
         "implementation_level": "2;1",
@@ -155,12 +158,17 @@ def test_file_mvd_attr():
     [
         "fixtures/fail_invalid_header_entity.ifc",
         "fixtures/fail_no_header.ifc",
-    ],
+        "fixtures/fail_missing_implementation_level.ifc",
+        "fixtures/fail_wrong_implementation_level.ifc",
+    ]
 )
 def test_invalid_headers_(filename):
-    # error in header
-    with pytest.raises(_ValidationError):
+    
+    with pytest.raises(CollectedValidationErrors) as exc_info:
         parse(filename=filename, with_tree=False, only_header=True)
+
+    errors = exc_info.value.errors
+    assert len(errors) > 0
 
 
 @pytest.mark.parametrize(
@@ -172,21 +180,34 @@ def test_invalid_headers_(filename):
     ],
 )
 def test_valid_headers(filename):
-    # error in body
+    
+    # error are in body, not in the header
     with nullcontext():
         parse(filename=filename, with_tree=False, only_header=True)
 
 
-def test_header_entity_fields():
-    with pytest.raises(_ValidationError):
-        parse(
-            filename="fixtures/fail_too_many_header_entity_fields.ifc", only_header=True
-        )
+def test_too_many_header_entity_fields():
+    with pytest.raises(_ValidationError) as exc_info:
+        parse(filename="fixtures/fail_too_many_header_entity_fields.ifc", only_header=True)
+
+    errors = str(exc_info.value)
+
+    assert len(errors) > 0
+    assert "1 validation error(s) collected" in errors
+    assert "Invalid number of parameters for HEADER field 'FILE_NAME'." in errors
+    assert "Expected 7, found 8." in errors
 
 
 def test_header_entity_fields_whole_file():
-    with pytest.raises(_ValidationError):
+    with pytest.raises(_ValidationError) as exc_info:
         parse(filename="fixtures/fail_too_many_header_entity_fields.ifc")
+
+    errors = str(exc_info.value)
+    
+    assert len(errors) > 0
+    assert "1 validation error(s) collected" in errors
+    assert "Invalid number of parameters for HEADER field 'FILE_NAME'." in errors
+    assert "Expected 7, found 8." in errors
 
 
 def test_multiple_duplicate_ids():
@@ -197,7 +218,9 @@ def test_multiple_duplicate_ids():
 
     assert len(errors) == 2
     assert all(isinstance(e, DuplicateNameError) for e in errors)
-
+    assert all("On line" in str(e) for e in errors)
+    assert all("Duplicate instance name" in str(e) for e in errors)
+    
 
 def test_multiple_wrong_header_fields():
     with pytest.raises(CollectedValidationErrors) as exc_info:
@@ -205,8 +228,9 @@ def test_multiple_wrong_header_fields():
 
     errors = exc_info.value.errors
 
-    assert len(errors) == 2
+    assert len(errors) == 3
     assert all(isinstance(e, HeaderFieldError) for e in errors)
+    assert all("Invalid number of parameters for HEADER field" in str(e) for e in errors)
 
 
 REPO_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -216,27 +240,44 @@ MODULE_NAME = os.path.basename(REPO_DIR)
 
 def run_cli(*args):
     return subprocess.run(
-        ["python", "-m", MODULE_NAME, *args],
+        ["python3", "-m", MODULE_NAME, *args],
         capture_output=True,
         text=True,
         cwd=PARENT_DIR,
     )
 
 
-def test_cli_valid_file():
-    result = run_cli("step-file-parser/fixtures/passing_header.ifc")
+@pytest.mark.parametrize("filename", glob.glob("fixtures/pass*.ifc"))
+@pytest.mark.parametrize("only_header", [False, True])
+def test_cli_valid_file(filename, only_header):
+    args = []
+    if only_header: args.append('--only-header')
+    result = run_cli(f'step-file-parser/{filename}', *args)
     assert result.returncode == 0
     assert "Valid" in result.stderr
 
 
-def test_cli_invalid_file():
+@pytest.mark.parametrize("filename", glob.glob("fixtures/pass*.ifc"))
+@pytest.mark.parametrize("only_header", [False, True])
+def test_cli_valid_file_json_output(filename, only_header):
+    args = ['--json']
+    if only_header: args.append('--only-header')
+    result = run_cli(f'step-file-parser/{filename}', *args)
+    assert result.returncode == 0
+    assert result.stderr.strip() == ""
+    assert result.stdout.strip() == ""
+
+
+def test_cli_fail_no_header():
     result = run_cli("step-file-parser/fixtures/fail_no_header.ifc")
     assert result.returncode == 1
+    assert result.stderr.strip() != ""
 
 
-def test_cli_json_output():
-    result = run_cli("--json", "step-file-parser/fixtures/fail_no_header.ifc")
+def test_cli_fail_no_header_json_output():
+    result = run_cli("step-file-parser/fixtures/fail_no_header.ifc", "--json")
     assert result.returncode == 1
+    assert result.stdout.strip() != ""
     errors = json.loads(result.stdout)
     assert isinstance(errors, list)
     assert len(errors) > 0
