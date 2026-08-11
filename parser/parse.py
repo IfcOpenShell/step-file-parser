@@ -40,6 +40,38 @@ class ParseResult:
     entities: dict[int, list[entity_instance]]
 
 
+# Matches and removes the comments
+COMMENT_PATTERN = r"/\*[\s\S]*?\*/"
+
+HEADER_REGEX = re.compile(
+    r"ISO-10303-21;\s*HEADER;(.*?)ENDSEC;", flags=re.DOTALL | re.IGNORECASE
+)
+
+
+def read_header_prefix(filename, chunk_size=64 * 1024):
+    """Read only up to the ``ENDSEC;`` closing the HEADER section, keeping
+    peak memory flat. Comment-aware (``ENDSEC;`` inside ``/* */`` does not
+    stop the scan); capped at 1 MB, past which the caller reports the usual
+    missing-header error."""
+    blank_fn = lambda match: " " * len(match.group())
+    buf = ""
+    with builtins.open(filename, encoding=None) as f:
+        while True:
+            chunk = f.read(chunk_size)
+            eof = not chunk
+            buf += chunk
+            searchable = re.sub(COMMENT_PATTERN, blank_fn, buf)
+            if not eof:
+                open_comment = searchable.find("/*")
+                if open_comment != -1:
+                    searchable = searchable[:open_comment]
+            match = HEADER_REGEX.search(searchable)
+            if match:
+                return buf[: match.end()]
+            if eof or len(buf) >= 1024 * 1024:
+                return buf
+
+
 def process_tree(filecontent, file_tree, with_progress, error_collector):
     ents = defaultdict(list)
     header, data = file_tree.children
@@ -82,23 +114,20 @@ def parse(
     if filename:
         if filecontent:
             raise ValueError("Cannot specify both filename and filecontent")
-        filecontent = builtins.open(filename, encoding=None).read()
-
-    # Match and remove the comments
-    p = r"/\*[\s\S]*?\*/"
+        if only_header:
+            # Only read the beginning of the file instead of all of it
+            filecontent = read_header_prefix(filename)
+        else:
+            filecontent = builtins.open(filename, encoding=None).read()
 
     def replace_fn(match):
         return re.sub(r"[^\n]", " ", match.group(), flags=re.M)
 
-    filecontent_wo_comments = re.sub(p, replace_fn, filecontent)
+    filecontent_wo_comments = re.sub(COMMENT_PATTERN, replace_fn, filecontent)
 
     if only_header:
         # Extract just the HEADER section using regex
-        header_match = re.search(
-            r"ISO-10303-21;\s*HEADER;(.*?)ENDSEC;",
-            filecontent_wo_comments,
-            flags=re.DOTALL | re.IGNORECASE,
-        )
+        header_match = HEADER_REGEX.search(filecontent_wo_comments)
         if not header_match:
             error_collector.add(
                 HeaderFieldError("header", "", "No HEADER section found in file")
